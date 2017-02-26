@@ -1,0 +1,27 @@
+# syntax:
+# variable = value
+# (spaces doesn't care)
+#
+# Valid variables
+#  wifi_mode - (A-AP, S -or other- - Station
+#  ssid - Network SSID 
+#  password - Network password (not set for none)
+#  soilSensorMinLevel - Level when pump STOPS working (remember, soil sensor returns 0 when fully wet)
+#  soilSensorMaxLevel - Level when pump STARTS working (remember, soil sensor returns 0 when fully wet)
+#  timeReportMilis - ms between reports to server. Also, ms between two reads
+#  timeWarmingMilis - ms warming sensor before read. Sensor is stopped when pump is not working and is powered each timeReportMilis
+#  ApiKey - Get one at http://www.foroelectro.net/arduino
+#
+# Comments: lines starting with "#", ";" or "//"
+
+wifi_mode = A
+ssid = WateringConfigSSID
+;password = -none-
+soilSensorMinLevel = 400
+soilSensorMaxLevel = 800
+timeReportMilis = 300000
+timeWarmingMilis = 30000
+;ApiKey = Get one at http://www.foroelectro.net/arduino
+
+
+
