@@ -29,15 +29,18 @@ int soilSensorMinLevel = 700; // Below this level pump starts. Remember, 10-bit 
 int soilSensorMaxLevel = 550; // Avobe this level pump stops. Remember, 10-bit on ESP8266
 
 // Timers adjustments
-//unsigned long int timeReportMilis = 600000; // ms between reports. 10min	
-unsigned long int timeReportMilis = 30000; // TESTING, 30s
+#ifdef WATERING_DEBUG
+	unsigned long int timeReportMilis = 30000; // // ms between reports. TESTING, 30s
+	unsigned long int timeWarmingMilis = 15000; // ms warming sensor before read. TESTING, 15s
+	unsigned long int timeReadMilisStandBy = 45000; // ms between sensor reads - Stand by. TESTING, 45s
+	unsigned long int timeReadMilisWatering = 5000; //ms between sensor reads - watering, 5s
+#else
+	unsigned long int timeReportMilis = 600000; // ms between reports. 10min	
+	unsigned long int timeWarmingMilis = 35000; // ms warming sensor before read. 35sec
+	unsigned long int timeReadMilisStandBy = 600000; //ms between sensor reads - Stand by. 600s; 10 min
+	unsigned long int timeReadMilisWatering = 5000; //ms between sensor reads - watering, 5s
+#endif
 
-unsigned long int timeWarmingMilis = 35000; // ms warming sensor before read. 35sec
-
-//unsigned long int timeReadMilisStandBy = 600000; //ms between sensor reads - Stand by
-unsigned long int timeReadMilisStandBy = 30000; // TESTING, 30s
-
-unsigned long int timeReadMilisWatering = 30000; //ms between sensor reads - watering
 
 #define SOIL_SENSOR_READ_PIN A0
 #define SOIL_SENSOR_ACTIVATE_PIN D0
@@ -97,11 +100,13 @@ void loop(void);
 char lastReport[512]; // Take care, very long string
 unsigned long int lastReportTime = 0;
 unsigned long int lastSoilSensorActivationTime = 0;
+unsigned long int lastSoilSensorReadTime = 0;
 int lastSoilSensorRead = -1;
 bool pumpRunning = PUMP_STATUS_OFF;
 bool outOfWater = OOW_SENSOR_STATUS_ON;
-bool soilSensorStatus = SOIL_SENSOR_STATUS_OFF;
+bool soilSensorStatus = SOIL_SENSOR_STATUS_ON;
 bool hasSD = false;
+unsigned long actMilis = 0;
 
 
 #ifdef WATERING_DEBUG
