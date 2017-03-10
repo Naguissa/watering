@@ -134,7 +134,7 @@ void parseConfigLine(String line) {
 void doReport() {
 	rtc.refresh();
 	EXTRA_YIELD();
-	sprintf(lastReport, "{\"date\":\"%u-%u-%u %u:%u:%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReportMilis\":\"%u\",\"timeWarmingMilis\":\"%u\",\"timeReadMilisStandBy\":\"%u\",\"timeReadMilisWatering\":\"%u\",\"lastSoilSensorActivationTime\": \"%u\",\"lastSoilSensorReadTime\": \"%u\",\"lastSoilSensorRead\":\"%d\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\",\"hasSD\":\"%d\",\"actMilis\":\"%d\"}", rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), soilSensorMinLevel, soilSensorMaxLevel, timeReportMilis, timeWarmingMilis, timeReadMilisStandBy, timeReadMilisWatering, lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, actMilis);
+	sprintf(lastReport, "{\"date\":\"%2u-%2u-%2u %2u:%2u:%2u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReportMilis\":\"%u\",\"timeWarmingMilis\":\"%u\",\"timeReadMilisStandBy\":\"%u\",\"timeReadMilisWatering\":\"%u\",\"lastSoilSensorActivationTime\": \"%u\",\"lastSoilSensorReadTime\": \"%u\",\"lastSoilSensorRead\":\"%d\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\",\"hasSD\":\"%d\",\"actMilis\":\"%d\"}", rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), soilSensorMinLevel, soilSensorMaxLevel, timeReportMilis, timeWarmingMilis, timeReadMilisStandBy, timeReadMilisWatering, lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, actMilis);
 }
 
 
@@ -245,16 +245,19 @@ void soilSensorChecks() {
 			lastSoilSensorRead = analogRead(SOIL_SENSOR_READ_PIN);
 			lastSoilSensorReadTime = actMilis;
 			// Recalculate next read to decide if it's appropiate to power off sensor
-			nextSoilSensorReadTime = lastSoilSensorReadTime + (pumpRunning == PUMP_STATUS_ON ? timeReadMilisWatering : timeReadMilisStandBy);
-			if (nextSoilSensorReadTime > actMilis + timeWarmingMilis) { // Next read is after warming cycle; disable sensor
-				soilSensorStatus = SOIL_SENSOR_STATUS_OFF;
-			}
+			W_DEBUGLN(F("Sensor read!"));
 			return;
+		}
+		nextSoilSensorReadTime = lastSoilSensorReadTime + (lastSoilSensorRead > soilSensorMinLevel || pumpRunning == PUMP_STATUS_ON ? timeReadMilisWatering : timeReadMilisStandBy);
+		if (nextSoilSensorReadTime > actMilis + timeWarmingMilis + 1000) { // Next read is after warming cycle; disable sensor
+			W_DEBUGLN(F("Sensor timeout deactivation!"));
+			soilSensorStatus = SOIL_SENSOR_STATUS_OFF;
 		}
 	// Sensor off; waiting for next test
 	} else {
 		unsigned long nextSoilSensorPowerTime = lastSoilSensorReadTime + (pumpRunning == PUMP_STATUS_ON ? timeReadMilisWatering : timeReadMilisStandBy) - timeWarmingMilis;
 		if (nextSoilSensorPowerTime <= actMilis) { // Let's activate it!
+			W_DEBUGLN(F("Sensor activation!"));
 			lastSoilSensorActivationTime = actMilis;
 			soilSensorStatus = SOIL_SENSOR_STATUS_ON;
 			return;
