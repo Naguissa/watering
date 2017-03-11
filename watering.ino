@@ -35,7 +35,6 @@ uRTCLib rtc;
 void parseConfigLine(String line) {
 	int pos;
 	String variable, value;
-	bool ret = false;
 	line.trim();
 	W_DEBUG(F("CONFIG LINE START: "));
 	W_DEBUGLN(line);
@@ -64,10 +63,6 @@ void parseConfigLine(String line) {
 		soilSensorMaxLevel = value.toInt();
 		W_DEBUG(F("CONFIG LINE: soilSensorMaxLevel = "));
 		W_DEBUGLN(soilSensorMaxLevel);
-	} else if (variable.equals("timeReportMilis")) {
-		timeReportMilis = value.toInt();
-		W_DEBUG(F("CONFIG LINE: timeReportMilis = "));
-		W_DEBUGLN(timeReportMilis);
 	} else if (variable.equals("timeReadMilisStandBy")) {
 		timeReadMilisStandBy = value.toInt();
 		W_DEBUG(F("CONFIG LINE: timeReadMilisStandBy = "));
@@ -85,11 +80,10 @@ void parseConfigLine(String line) {
 			free(reportingApiKey);
 		}
 		reportingApiKey = (char *) malloc(value.length() + 1);
-		char tmpbuffer[128];
-		value.toCharArray(tmpbuffer, 120);
+		char tmpbuffer[200];
+		value.toCharArray(tmpbuffer, 200);
 		strcpy(reportingApiKey, tmpbuffer);
 		reportingApiKey[value.length()] = '\0';
-		ret = true;
 		W_DEBUG(F("CONFIG LINE: reportingApiKey = "));
 		W_DEBUGLN(reportingApiKey);
 	} else if (variable.equals("ssid")) {
@@ -97,29 +91,24 @@ void parseConfigLine(String line) {
 			free(ssid);
 		}
 		ssid = (char *) malloc(value.length() + 1);
-		char tmpbuffer[128];
-		value.toCharArray(tmpbuffer, 120);
+		char tmpbuffer[200];
+		value.toCharArray(tmpbuffer, 200);
 		strcpy(ssid, tmpbuffer);
 		ssid[value.length()] = '\0';
-		ret = true;
 		W_DEBUG(F("CONFIG LINE: ssid = "));
 		W_DEBUGLN(ssid);
 	} else if (variable.equals("password")) {
-		if (ssid) {
+		if (password) {
 			free(password);
 		}
 		password = (char *) malloc(value.length() + 1);
-		char tmpbuffer[128];
-		value.toCharArray(tmpbuffer, 120);
+		char tmpbuffer[200];
+		value.toCharArray(tmpbuffer, 200);
 		strcpy(password, tmpbuffer);
 		password[value.length()] = '\0';
-		ret = true;
 		W_DEBUG(F("CONFIG LINE: password = "));
 		W_DEBUGLN(password);
 	} else if (variable.equals("wifi_mode")) {
-		if (ssid) {
-			free(password);
-		}
 		wifi_mode = value.charAt(0);
 		W_DEBUG(F("CONFIG LINE: wifi_mode = "));
 		W_DEBUGLN(wifi_mode);
@@ -134,13 +123,14 @@ void parseConfigLine(String line) {
 void doReport() {
 	rtc.refresh();
 	EXTRA_YIELD();
-	sprintf(lastReport, "{\"date\":\"%2u-%2u-%2u %2u:%2u:%2u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReportMilis\":\"%u\",\"timeWarmingMilis\":\"%u\",\"timeReadMilisStandBy\":\"%u\",\"timeReadMilisWatering\":\"%u\",\"lastSoilSensorActivationTime\": \"%u\",\"lastSoilSensorReadTime\": \"%u\",\"lastSoilSensorRead\":\"%d\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\",\"hasSD\":\"%d\",\"actMilis\":\"%d\"}", rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), soilSensorMinLevel, soilSensorMaxLevel, timeReportMilis, timeWarmingMilis, timeReadMilisStandBy, timeReadMilisWatering, lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, actMilis);
+	sprintf(lastReport, "{\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeWarmingMilis\":\"%u\",\"timeReadMilisStandBy\":\"%u\",\"timeReadMilisWatering\":\"%u\",\"lastSoilSensorActivationTime\": \"%u\",\"lastSoilSensorReadTime\": \"%u\",\"lastSoilSensorRead\":\"%d\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\",\"hasSD\":\"%d\",\"actMilis\":\"%d\"}", rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), soilSensorMinLevel, soilSensorMaxLevel, timeWarmingMilis, timeReadMilisStandBy, timeReadMilisWatering, lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, actMilis);
 }
 
 
 
 void report() {
 	doReport();
+	EXTRA_YIELD();
 
 /**
  * Report to SD/SPIFFS
@@ -153,26 +143,33 @@ void report() {
 
 	if (reportingApiKey) {
 	 // Use WiFiClient class to create TCP connections
+//		WiFiClientSecure client;
 		WiFiClient client;
-		const char* host = "http://www.foroelectro.net";
+
+//		const char* fingerprint = "23 66 E2 D6 94 B5 DD 65 92 0A 4A 9B 34 70 7B B4 35 9B B6 C9";
+		const char* host = "163.172.27.140";
+//		if (!client.connect(host, 443)) {
 		if (!client.connect(host, 80)) {
-	    	W_DEBUGLN(F("Reporting connection failed"));
+	    	W_DEBUG(F("Reporting connection failed: "));
+			W_DEBUG(host);
+	    	W_DEBUG(":");
+			W_DEBUGLN(443);
 	    	return;
 	  	}
 		EXTRA_YIELD();
 
 	  	// This will send the request to the server
-	  	client.println(String("POST /arduino/api/") + reportingApiKey + "/store?_femode=2 HTTP/1.1");
-	  	client.print("Host: ");
+	  	client.println(String(F("POST /arduino/api/")) + reportingApiKey + F("/store?_femode=2 HTTP/1.1"));
+	  	client.print(F("Host: "));
 	  	client.println(host);
-		client.println("Cache-Control: no-cache");
-		client.println("Content-Type: application/x-www-form-urlencoded");
-		client.print("Content-Length: ");
+		client.println(F("Cache-Control: no-cache"));
+		client.println(F("Content-Type: application/x-www-form-urlencoded"));
+		client.print(F("Content-Length: "));
 		client.println(strlen(lastReport) + 5);
 		client.println();
-		client.print("data=");
+		client.print(F("data="));
 		client.println(lastReport);
-	  	client.println("Connection: close\r\n");
+	  	client.println(F("Connection: close\r\n"));
 	  	delay(10);
 	
 	  	// Read all the lines of the reply from server and print them to Serial
@@ -180,10 +177,11 @@ void report() {
 	    	client.readStringUntil('\r');
 			EXTRA_YIELD();
 	  	}
+    	W_DEBUG(F("Reporting done"));
 	} else {
 		W_DEBUGLN(F("Reporting to server failed due lack of ApiKey"));
 	}
-  EXTRA_YIELD();
+	EXTRA_YIELD();
 }
 
 
@@ -213,7 +211,8 @@ void soilSensorProcessValue() {
 
 void soilSensorChecks() {
 	// START counter overflow control
-	if (lastSoilSensorActivationTime > actMilis + timeReadMilisStandBy || lastSoilSensorActivationTime == 0) { // overflow or 1st run; reset all timers and check inmediately
+	if (lastSoilSensorActivationTime > actMilis + 1000 || lastSoilSensorActivationTime == 0) { // overflow or 1st run; reset all timers and check inmediately
+		W_DEBUGLN(F("Start or next read overflow"));
 		lastSoilSensorActivationTime = 1; // To avoid entering always on same loop
 		lastSoilSensorReadTime = 0;
 		soilSensorStatus = SOIL_SENSOR_STATUS_ON;
@@ -234,18 +233,23 @@ void soilSensorChecks() {
 		unsigned long nextSoilSensorReadTime = lastSoilSensorReadTime + (pumpRunning == PUMP_STATUS_ON ? timeReadMilisWatering : timeReadMilisStandBy);
 
 		// Next read overflow control
-		if (nextSoilSensorReadTime <= 0 || nextSoilSensorReadTime + 5000 < actMilis) { // overflow control, add 5s comparing to actMilis because execution time & activation
-			lastSoilSensorActivationTime = 1;
-			lastSoilSensorReadTime = 0;
+		if (nextSoilSensorReadTime < lastSoilSensorReadTime || nextSoilSensorReadTime + 5000 < actMilis) { // overflow control, add 5s comparing to actMilis because execution time & activation
+			W_DEBUGLN(F("Next read overflow"));
+			lastSoilSensorActivationTime = actMilis;
+			lastSoilSensorReadTime = actMilis;
 			return;
 		}
 		
 		// Time to read!
 		if (nextSoilSensorReadTime <= actMilis) {
 			lastSoilSensorRead = analogRead(SOIL_SENSOR_READ_PIN);
+			EXTRA_YIELD();
 			lastSoilSensorReadTime = actMilis;
 			// Recalculate next read to decide if it's appropiate to power off sensor
 			W_DEBUGLN(F("Sensor read!"));
+			EXTRA_YIELD();
+			report();
+			EXTRA_YIELD();
 			return;
 		}
 		nextSoilSensorReadTime = lastSoilSensorReadTime + (lastSoilSensorRead > soilSensorMinLevel || pumpRunning == PUMP_STATUS_ON ? timeReadMilisWatering : timeReadMilisStandBy);
@@ -299,15 +303,6 @@ void soilSensorLoop() {
 	EXTRA_YIELD();
 	soilSensorActuations();
 	EXTRA_YIELD();
-}
-
-
-
-void reportLoop() {
-	if (lastReportTime + timeReportMilis <= actMilis) {
-		report();
-		lastReportTime = actMilis;
-	}
 }
 
 
@@ -685,11 +680,11 @@ void setupWiFi(void){
 		WiFi.begin(ssid, password);
 		// Wait for connection
 		uint8_t i = 0;
-		while (WiFi.status() != WL_CONNECTED && i++ < 20) {//wait 10 seconds
+		while (WiFi.status() != WL_CONNECTED && i++ < 30) {//wait 30 seconds
 			delay(500);
 		}
-		if(i == 21){
-			W_DEBUG("Could not connect to");
+		if(i == 31){
+			W_DEBUG("Could not connect to ");
 			W_DEBUGLN(ssid);
 			return;
 		}
@@ -766,8 +761,6 @@ void loop(void){
 	soilSensorLoop();
 	EXTRA_YIELD();
 	server.handleClient();
-	EXTRA_YIELD();
-	reportLoop();
 	EXTRA_YIELD();
 
 #ifdef WATERING_DEBUG
