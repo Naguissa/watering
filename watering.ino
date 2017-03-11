@@ -177,7 +177,7 @@ void report() {
 	    	client.readStringUntil('\r');
 			EXTRA_YIELD();
 	  	}
-    	W_DEBUG(F("Reporting done"));
+    	W_DEBUGLN(F("Reporting done"));
 	} else {
 		W_DEBUGLN(F("Reporting to server failed due lack of ApiKey"));
 	}
@@ -233,7 +233,7 @@ void soilSensorChecks() {
 		unsigned long nextSoilSensorReadTime = lastSoilSensorReadTime + (pumpRunning == PUMP_STATUS_ON ? timeReadMilisWatering : timeReadMilisStandBy);
 
 		// Next read overflow control
-		if (nextSoilSensorReadTime < lastSoilSensorReadTime || nextSoilSensorReadTime + 5000 < actMilis) { // overflow control, add 5s comparing to actMilis because execution time & activation
+		if (nextSoilSensorReadTime < lastSoilSensorReadTime || nextSoilSensorReadTime + 12500 < actMilis) { // overflow control, add 12,5s comparing to actMilis because execution time & activation
 			W_DEBUGLN(F("Next read overflow"));
 			lastSoilSensorActivationTime = actMilis;
 			lastSoilSensorReadTime = actMilis;
