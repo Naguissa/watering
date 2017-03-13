@@ -316,7 +316,7 @@ void setupHW(void){
 	pinMode(PUMP_ACTIVATE_PIN, OUTPUT);
 	digitalWrite(PUMP_ACTIVATE_PIN, 0);
 	
-	pinMode(WATER_LEVEL_PIN, INPUT);
+	pinMode(WATER_LEVEL_PIN, INPUT_PULLUP);
 	
 	Serial.begin(115200);
 	Wire.begin(0, 2); // D3 and D4
