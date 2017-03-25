@@ -3,10 +3,17 @@
 #define FS_SD_CARD 1
 #define FS_SPIFFS 2
 
+
+
+
+
 #define FS_TYPE FS_SD_CARD
 
 // Comment to disable Serial debug prints
 #define WATERING_DEBUG
+
+// Comment to disable MQTT support
+#define WATERING_MQTT
 
 
 // For different sensors, positive or neative ones
@@ -46,8 +53,17 @@ int soilSensorMaxLevel = 550; // Avobe this level pump stops. Remember, 10-bit o
 #define WATER_LEVEL_PIN D2
 
 char *reportingApiKey = NULL;
-char* ssid;
-char* password;
+char* ssid = NULL;
+char* password = NULL;
+
+// Fixed IPs to speed-up connections
+//IPAddress* mqttIp = NULL;
+//IPAddress* apiIp = NULL;
+IPAddress* wifiIp = NULL;
+IPAddress* wifiNet = NULL;
+IPAddress* wifiGW = NULL;
+IPAddress* wifiDNS1 = NULL;
+IPAddress* wifiDNS2 = NULL;
 
 
 /** END Initial config **/
@@ -67,6 +83,7 @@ char* password;
 /********************************
  * Function declarations
  ******************************* */
+void parseConfigIpValue(IPAddress**, char *);
 void parseConfigLine(String);
 void doReport();
 void report();
@@ -85,6 +102,7 @@ void loadConfig();
 void printDirectory();
 void handleFiles();
 void handleResetSD();
+void parseIPVaraible();
 void setupWiFi(void);
 void setupMandatoryInitialValues();
 void setup(void);

@@ -24,4 +24,15 @@ timeWarmingMilis = 30000
 ;ApiKey = Get one at http://www.foroelectro.net/arduino
 
 
+;mqttIp = 163.172.27.140
+
+;apiIp = 163.172.27.140
+
+;wifiIp = 192.168.3.28;
+;wifiNet = 255.255.255.0;
+;wifiGW = 192.168.3.1;
+
+# Google DNSs
+;wifiDNS1 = 8.8.8.8
+;wifiDNS2 = 8.8.4.4
 

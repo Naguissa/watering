@@ -13,6 +13,7 @@ Also all libraries used are Arduino-copatible, so should be possible to adapt th
 
  * Get the ZIP.
  * Get my uRTCLib library: You can look at Arduino IDE library manager or download it from https://github.com/Naguissa/uRTCLib
+ * If you want to use MQTT, get Nick O'Leary PubSub Library (MQTT functionality). It's available on Arduino IDE's Library Manager. Also see http://pubsubclient.knolleary.net/
  * You can edit .h file to configure watering system with your options (filesystem, connection pins, negate logic devices, etc)
  * Upload sketch to microcontroller
  * Prepare extra data:

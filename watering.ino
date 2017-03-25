@@ -13,6 +13,14 @@
 #include <uRTCLib.h>
 #include "watering.h"
 
+#ifdef WATERING_MQTT
+	#include <PubSubClient.h>
+	WiFiClient wifiClient;
+	void callback(char* topic, byte* payload, unsigned int length) {
+	  // Ignore incomming messages
+	}
+#endif
+
 /**
  * See Watering.h for config and options
  */
@@ -31,6 +39,33 @@ uRTCLib rtc;
 		#include "FS.h"
 #endif
 
+void parseConfigIpValue(IPAddress**dest, char * value) {
+	if (*dest) {
+		free(*dest);
+	}
+	byte ipParts[4];
+	char* part = strtok(value, ".");
+	byte nparts = 0;
+	while (part != 0) {
+		ipParts[nparts] = (byte) atoi(part);
+        ++nparts;
+    	// Find the next part
+    	part = strtok(0, ".");
+    	// Prevent overflow
+    	if (nparts > 3) {
+    		break;
+    	}
+	}
+
+	if (nparts != 4) {
+		W_DEBUG(F("IP parse ERROR: "));
+		W_DEBUGLN(value);
+	} else {
+		*dest = new IPAddress(ipParts[0], ipParts[1], ipParts[2], ipParts[3]);
+		W_DEBUGLN(F("IP parse OK."));
+	}		
+	return;
+}
 
 void parseConfigLine(String line) {
 	int pos;
@@ -54,27 +89,21 @@ void parseConfigLine(String line) {
 	variable.trim();
 	value.trim();
 
-
+	W_DEBUG(F("CONFIG LINE: "));
+	W_DEBUG(variable);
+	W_DEBUG(F(" =  "));
+	W_DEBUGLN(value);
+		
 	if (variable.equals("soilSensorMinLevel")) {
 		soilSensorMinLevel = value.toInt();
-		W_DEBUG(F("CONFIG LINE: soilSensorMinLevel = "));
-		W_DEBUGLN(soilSensorMinLevel);
 	} else if (variable.equals("soilSensorMaxLevel")) {
 		soilSensorMaxLevel = value.toInt();
-		W_DEBUG(F("CONFIG LINE: soilSensorMaxLevel = "));
-		W_DEBUGLN(soilSensorMaxLevel);
 	} else if (variable.equals("timeReadMilisStandBy")) {
 		timeReadMilisStandBy = value.toInt();
-		W_DEBUG(F("CONFIG LINE: timeReadMilisStandBy = "));
-		W_DEBUGLN(timeReadMilisStandBy);
 	} else if (variable.equals("timeReadMilisWatering")) {
 		timeReadMilisWatering = value.toInt();
-		W_DEBUG(F("CONFIG LINE: timeReadMilisWatering = "));
-		W_DEBUGLN(timeReadMilisWatering);
 	} else if (variable.equals("timeWarmingMilis")) {
 		timeWarmingMilis = value.toInt();
-		W_DEBUG(F("CONFIG LINE: timeWarmingMilis = "));
-		W_DEBUGLN(timeWarmingMilis);
 	} else if (variable.equals("ApiKey")) {
 		if (reportingApiKey) {
 			free(reportingApiKey);
@@ -84,8 +113,6 @@ void parseConfigLine(String line) {
 		value.toCharArray(tmpbuffer, 200);
 		strcpy(reportingApiKey, tmpbuffer);
 		reportingApiKey[value.length()] = '\0';
-		W_DEBUG(F("CONFIG LINE: reportingApiKey = "));
-		W_DEBUGLN(reportingApiKey);
 	} else if (variable.equals("ssid")) {
 		if (ssid) {
 			free(ssid);
@@ -95,8 +122,6 @@ void parseConfigLine(String line) {
 		value.toCharArray(tmpbuffer, 200);
 		strcpy(ssid, tmpbuffer);
 		ssid[value.length()] = '\0';
-		W_DEBUG(F("CONFIG LINE: ssid = "));
-		W_DEBUGLN(ssid);
 	} else if (variable.equals("password")) {
 		if (password) {
 			free(password);
@@ -106,17 +131,41 @@ void parseConfigLine(String line) {
 		value.toCharArray(tmpbuffer, 200);
 		strcpy(password, tmpbuffer);
 		password[value.length()] = '\0';
-		W_DEBUG(F("CONFIG LINE: password = "));
-		W_DEBUGLN(password);
+/* Disabled by now...
+	} else if (variable.equals("mqttIp")) {
+		char tmpbuffer[200];
+		value.toCharArray(tmpbuffer, 200);
+		parseConfigIpValue(&mqttIp, tmpbuffer);
+	} else if (variable.equals("apiIp")) {
+		char tmpbuffer[200];
+		value.toCharArray(tmpbuffer, 200);
+		parseConfigIpValue(&apiIp, tmpbuffer);
+*/
+	} else if (variable.equals("wifiIp")) {
+		char tmpbuffer[200];
+		parseConfigIpValue(&wifiIp, tmpbuffer);
+	} else if (variable.equals("wifiNet")) {
+		char tmpbuffer[200];
+		value.toCharArray(tmpbuffer, 200);
+		parseConfigIpValue(&wifiNet, tmpbuffer);
+	} else if (variable.equals("wifiGW")) {
+		char tmpbuffer[200];
+		value.toCharArray(tmpbuffer, 200);
+		parseConfigIpValue(&wifiGW, tmpbuffer);
+	} else if (variable.equals("wifiDNS1")) {
+		char tmpbuffer[200];
+		value.toCharArray(tmpbuffer, 200);
+		parseConfigIpValue(&wifiDNS1, tmpbuffer);
+	} else if (variable.equals("wifiDNS2")) {
+		char tmpbuffer[200];
+		value.toCharArray(tmpbuffer, 200);
+		parseConfigIpValue(&wifiDNS2, tmpbuffer);
 	} else if (variable.equals("wifi_mode")) {
 		wifi_mode = value.charAt(0);
-		W_DEBUG(F("CONFIG LINE: wifi_mode = "));
-		W_DEBUGLN(wifi_mode);
 	} else {
 		W_DEBUG(F("CONFIG LINE UNKNOWN: "));
 		W_DEBUGLN(line);
 	}
-
 }
 
 
@@ -146,8 +195,9 @@ void report() {
 //		WiFiClientSecure client;
 		WiFiClient client;
 
+		IPAddress host(163, 172, 27, 140);
+// HTTPS, disabled for speed-up. No so private data....
 //		const char* fingerprint = "23 66 E2 D6 94 B5 DD 65 92 0A 4A 9B 34 70 7B B4 35 9B B6 C9";
-		const char* host = "163.172.27.140";
 //		if (!client.connect(host, 443)) {
 		if (!client.connect(host, 80)) {
 	    	W_DEBUG(F("Reporting connection failed: "));
@@ -177,10 +227,27 @@ void report() {
 	    	client.readStringUntil('\r');
 			EXTRA_YIELD();
 	  	}
-    	W_DEBUGLN(F("Reporting done"));
+    	W_DEBUGLN(F("API reporting done"));
+
+		#ifdef WATERING_MQTT
+		PubSubClient mqttclient(host, 1883, callback, wifiClient);
+		if (mqttclient.connect(reportingApiKey)) {
+    		if (mqttclient.publish(reportingApiKey, lastReport)) {
+      			W_DEBUGLN("MQTT Report OK");
+    		} else {
+      			W_DEBUGLN("MQTT Report failed");
+			}
+		} else {
+    		W_DEBUGLN("MQTT connection failed");
+		}
+		#endif
+
+	  	
 	} else {
 		W_DEBUGLN(F("Reporting to server failed due lack of ApiKey"));
 	}
+
+	
 	EXTRA_YIELD();
 }
 
@@ -500,18 +567,18 @@ void setRTC() {
 		}
 	
 		if (!dataFile) {
-			String message = "File Not Found\n\n";
+			String message = "<html><body><h1>File Not Found</h1>";
 			message += "URI: ";
 			message += server.uri();
-			message += "\nMethod: ";
+			message += "<br>Method: ";
 			message += (server.method() == HTTP_GET)?"GET":"POST";
-			message += "\nArguments: ";
+			message += "<br>Arguments: ";
 			message += server.args();
-			message += "\n";
+			message += "<br><p>Try <a href=\"/api/resetSD\">reset SD</a>, <a href=\"/api/status\">status</a> or <a href=\"/api/rtc\">rtc</a>.</p></body></html>";
 			for (uint8_t i=0; i<server.args(); i++){
 				message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
 			}
-			server.send(404, "text/plain", message);
+			server.send(404, "text/html", message);
 			return;
 		}
 	  
@@ -677,10 +744,26 @@ void handleResetSD() {
 void setupWiFi(void){
 	if (wifi_mode == 'S') {
 		WiFi.mode(WIFI_STA);
+		
+		if (wifiIp != NULL && wifiNet != NULL && wifiGW != NULL) { // Static IP
+			Serial.print(F("Static IP"));
+			if (wifiDNS1 != NULL) {
+				if (wifiDNS2 != NULL) { // Static DNS
+					WiFi.config(*wifiIp, *wifiGW, *wifiNet, *wifiDNS1);
+				} else {
+					WiFi.config(*wifiIp, *wifiGW, *wifiNet, *wifiDNS1, *wifiDNS2);
+				}
+			} else if (wifiDNS2 != NULL) {
+				WiFi.config(*wifiIp, *wifiGW, *wifiNet, *wifiDNS2);
+			} else {
+				WiFi.config(*wifiIp, *wifiGW, *wifiNet);
+			}
+		}
 		WiFi.begin(ssid, password);
 		// Wait for connection
 		uint8_t i = 0;
 		while (WiFi.status() != WL_CONNECTED && i++ < 30) {//wait 30 seconds
+			W_DEBUG('.');
 			delay(500);
 		}
 		if(i == 31){
@@ -693,6 +776,15 @@ void setupWiFi(void){
 		
 	} else { // Default mode, 'A' (AP)
 		WiFi.mode(WIFI_AP);
+		
+		if (wifiIp != NULL && wifiNet != NULL && wifiGW != NULL) { // Static IP with GW
+			Serial.print(F("Static IP"));
+			WiFi.softAPConfig(*wifiIp, *wifiGW, *wifiNet);
+		} else if (wifiIp != NULL && wifiNet != NULL && wifiGW == NULL) { // Static IP without GW
+			Serial.print(F("Static IP"));
+			WiFi.softAPConfig(*wifiIp, *wifiIp, *wifiNet);
+		}
+		// Static DNS(s)
  		WiFi.softAP(ssid, password);
 		W_DEBUG("SoftAP created! IP address: ");
 		W_DEBUGLN(WiFi.localIP());
