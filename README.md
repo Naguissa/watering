@@ -13,7 +13,7 @@ Also all libraries used are Arduino-copatible, so should be possible to adapt th
 
  * Get the ZIP.
  * Get my uRTCLib library: You can look at Arduino IDE library manager or download it from https://github.com/Naguissa/uRTCLib
- * You can edit .h file to change RTC I2C addresses and configure watering system with your options (filesystem, connection pins, negate logic devices, etc)
+ * You can edit .h file to configure watering system with your options (filesystem, connection pins, negate logic devices, etc)
  * Upload sketch to microcontroller
  * Prepare extra data:
   * If you want to use SD-card, format SD-card as FAT and copy files in data/ folder to SD-card.
