@@ -1,4 +1,4 @@
-// Log and web server filesystem:
+// Log and web server filesystem definitions; don't hange
 #define FS_NONE 0
 #define FS_SD_CARD 1
 #define FS_SPIFFS 2
@@ -7,7 +7,7 @@
 
 
 
-#define FS_TYPE FS_SD_CARD
+#define FS_TYPE FS_SPIFFS
 
 // Comment to disable Serial debug prints
 #define WATERING_DEBUG
@@ -15,6 +15,9 @@
 // Comment to disable MQTT support
 #define WATERING_MQTT
 
+// If uncommented, enables low power mode: gets MCU to sleep when detects a long period of waiting time.
+// Not compatible with FS_SD_CARD
+#define WATERING_LOW_POWER_MODE
 
 // For different sensors, positive or neative ones
 // Out Of Water sensor
@@ -23,6 +26,33 @@
 //  - Positive sensor: 
 //#define OOW_READ_EXTRA_FUN(x) x
 
+// If uncommented, enables DHT functionality for that specific sensor. Uncomment only one.
+// Not compatible with FS_SD_CARD.
+// Remember DHT11 is 5V
+//#define WATERING_DHTTYPE DHT11
+//#define WATERING_DHTTYPE DHT21
+#define WATERING_DHTTYPE DHT22
+
+#ifdef WATERING_DHTTYPE
+	// DHT data pin
+	#define WATERING_DHT_PIN D6
+	// DHT activation
+	#define WATERING_DHT_ACTIVATE_PIN D7
+
+	// status variables
+	int dht_h = 0;
+	int dht_t = 0;
+#endif
+
+#define SOIL_SENSOR_READ_PIN A0
+#define PUMP_ACTIVATE_PIN D1
+#define WATER_LEVEL_PIN D2
+
+#if FS_TYPE == FS_SPIFFS
+	#define SOIL_SENSOR_ACTIVATE_PIN D5
+#else
+	#define SOIL_SENSOR_ACTIVATE_PIN D0
+#endif
 
 
 /**
@@ -46,11 +76,6 @@ int soilSensorMaxLevel = 550; // Avobe this level pump stops. Remember, 10-bit o
 	unsigned long int timeReadMilisWatering = 5000; //ms between sensor reads - watering, 5s
 #endif
 
-
-#define SOIL_SENSOR_READ_PIN A0
-#define SOIL_SENSOR_ACTIVATE_PIN D0
-#define PUMP_ACTIVATE_PIN D1
-#define WATER_LEVEL_PIN D2
 
 char *reportingApiKey = NULL;
 char* ssid = NULL;
@@ -96,10 +121,8 @@ void reportLoop();
 void setupHW(void);
 void setupSD(void);
 void returnFail(String msg);
-void printRTC();
 void setRTC();
 void loadConfig();
-void printDirectory();
 void handleFiles();
 void handleResetSD();
 void parseIPVaraible();
@@ -110,7 +133,9 @@ void loop(void);
 #ifdef WATERING_DEBUG
 	void debugStatus();
 #endif
-
+#ifdef WATERING_LOW_POWER_MODE
+	void goToDeepSleep();
+#endif
 
 /** Status global variables **/
 char lastReport[512]; // Take care, very long string
@@ -155,5 +180,16 @@ unsigned long actMilis = 0;
 #else
 	#define EXTRA_YIELD()
 #endif
+
+
+
+#if defined(WATERING_LOW_POWER_MODE) && FS_TYPE == FS_SD_CARD
+	#error "Low power mode cannot be active at the same time as FS_SD_CARD"
+#endif
+
+#if defined(WATERING_DHTTYPE) && FS_TYPE == FS_SD_CARD
+	#error "DHT functionality cannot be active at the same time as FS_SD_CARD"
+#endif
+
 
 

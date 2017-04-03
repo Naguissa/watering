@@ -13,6 +13,15 @@
 #include <uRTCLib.h>
 #include "watering.h"
 
+
+#ifdef WATERING_DHTTYPE
+	#include <Adafruit_Sensor.h>
+	#include <DHT.h>
+	#include <DHT_U.h>
+
+	DHT_Unified dht(WATERING_DHT_PIN, WATERING_DHTTYPE);
+#endif
+
 #ifdef WATERING_MQTT
 	#include <PubSubClient.h>
 	WiFiClient wifiClient;
@@ -172,7 +181,11 @@ void parseConfigLine(String line) {
 void doReport() {
 	rtc.refresh();
 	EXTRA_YIELD();
-	sprintf(lastReport, "{\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeWarmingMilis\":\"%u\",\"timeReadMilisStandBy\":\"%u\",\"timeReadMilisWatering\":\"%u\",\"lastSoilSensorActivationTime\": \"%u\",\"lastSoilSensorReadTime\": \"%u\",\"lastSoilSensorRead\":\"%d\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\",\"hasSD\":\"%d\",\"actMilis\":\"%d\"}", rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), soilSensorMinLevel, soilSensorMaxLevel, timeWarmingMilis, timeReadMilisStandBy, timeReadMilisWatering, lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, actMilis);
+	#ifdef WATERING_DHTTYPE
+		sprintf(lastReport, "{\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"lastSoilSensorActivationTime\": \"%u\",\"lastSoilSensorReadTime\": \"%u\",\"lastSoilSensorRead\":\"%d\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\",\"hasSD\":\"%d\",\"temp\":\"%d\",\"hum\":\"%d\",\"actMilis\":\"%d\"}", rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, dht_t, dht_h, actMilis);
+	#else
+		sprintf(lastReport, "{\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"lastSoilSensorActivationTime\": \"%u\",\"lastSoilSensorReadTime\": \"%u\",\"lastSoilSensorRead\":\"%d\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\",\"hasSD\":\"%d\",\"actMilis\":\"%d\"}", rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, actMilis);
+	#endif
 }
 
 
@@ -315,6 +328,19 @@ void soilSensorChecks() {
 			// Recalculate next read to decide if it's appropiate to power off sensor
 			W_DEBUGLN(F("Sensor read!"));
 			EXTRA_YIELD();
+
+			#ifdef WATERING_DHTTYPE
+  				sensors_event_t event;  
+  				dht.temperature().getEvent(&event);
+				if (!isnan(event.temperature)) {
+					dht_t = (int) (event.temperature * 100);
+				}
+				dht.humidity().getEvent(&event);
+				if (!isnan(event.relative_humidity)) {
+					dht_h = (int) (event.relative_humidity * 100);
+				}
+			#endif
+			
 			report();
 			EXTRA_YIELD();
 			return;
@@ -338,12 +364,6 @@ void soilSensorChecks() {
 }
 
 
-
-
-
-
-
-
 void soilSensorActuations() {
 	outOfWater = OOW_READ_EXTRA_FUN(digitalRead(WATER_LEVEL_PIN));
 	if (lastSoilSensorRead == -1 || outOfWater) {
@@ -357,11 +377,13 @@ void soilSensorActuations() {
 		}
 	}
 	
-	digitalWrite(SOIL_SENSOR_ACTIVATE_PIN, soilSensorStatus);
 	digitalWrite(PUMP_ACTIVATE_PIN, pumpRunning);
+	digitalWrite(SOIL_SENSOR_ACTIVATE_PIN, soilSensorStatus);
+	#ifdef WATERING_DHTTYPE
+		digitalWrite(WATERING_DHT_ACTIVATE_PIN, soilSensorStatus); // Follows same behaviour
+	#endif
+
 }
-
-
 
 
 
@@ -384,6 +406,10 @@ void setupHW(void){
 	digitalWrite(PUMP_ACTIVATE_PIN, 0);
 	
 	pinMode(WATER_LEVEL_PIN, INPUT_PULLUP);
+
+	#ifdef WATERING_DHTTYPE
+		pinMode(WATERING_DHT_ACTIVATE_PIN, OUTPUT);
+	#endif
 	
 	Serial.begin(115200);
 	Wire.begin(0, 2); // D3 and D4
@@ -394,7 +420,7 @@ void setupHW(void){
 
 
 void setupSD(void){
-	#ifdef FS_SD_CARD
+	#if FS_TYPE == FS_SD_CARD
 		if (SD.begin(SS)){
 			W_DEBUGLN(F("SD Card initialized."));
 			hasSD = true;
@@ -402,7 +428,7 @@ void setupSD(void){
 			hasSD = false;
 		}
 	#else
-		#ifdef FS_SPIFFS
+		#if FS_TYPE == FS_SPIFFS
 			if (hasSD) {
 				SPIFFS.end();
 			}
@@ -425,34 +451,6 @@ void setupSD(void){
 void returnFail(String msg) {
 	server.send(500, "text/plain", msg + "\r\n");
 }
-
-
-void printRTC() {
-	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-	server.send(200, "text/json", "");
-	
-	rtc.refresh();
-	char content[120];
-	sprintf(content, "{\"year\": %u,\"month\":%u,\"day\":%u,\"hour\":%u,\"minute\":%u,\"second\":%u,\"dow\":%u}", rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek());
-	server.sendContent(content);
-	
-	W_DEBUG(F("RTC DateTime: "));
-	W_DEBUG(rtc.year());
-	W_DEBUG('/');
-	W_DEBUG(rtc.month());
-	W_DEBUG('/');
-	W_DEBUG(rtc.day());
-	W_DEBUG(' ');
-	W_DEBUG(rtc.hour());
-	W_DEBUG(':');
-	W_DEBUG(rtc.minute());
-	W_DEBUG(':');
-	W_DEBUG(rtc.second());
-	W_DEBUG(F(" DOW: "));
-	W_DEBUGLN(rtc.dayOfWeek());
-	EXTRA_YIELD();
-}
-
 
 
 void setRTC() {
@@ -492,7 +490,7 @@ void setRTC() {
 
 
 
-#ifdef FS_SD_CARD
+#if FS_TYPE == FS_SD_CARD
 	void loadConfig() {
 		String line;
 	 	File dataFile = SD.open(F("/CONFIG.TXT"), FILE_READ);
@@ -512,46 +510,6 @@ void setRTC() {
 			line = dataFile.readStringUntil('\n');
 			parseConfigLine(line);
 		}
-	}
-	
-	void printDirectory() {
-		if(!server.hasArg("dir")) {
-			return returnFail(F("BAD ARGS"));
-		}
-		String path = server.arg("dir");
-		if (path != "/" && !SD.exists((char *)path.c_str())) {
-			return returnFail(F("BAD PATH"));
-		}
-		File dir = SD.open((char *)path.c_str());
-		if (!dir.isDirectory()) {
-			dir.close();
-			return returnFail(F("NOT DIR"));
-		}
-		dir.rewindDirectory();
-		server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-		server.send(200, "text/json", "");
-	//	WiFiClient client = server.client();
-		server.sendContent("[");
-		for (int cnt = 0; true; ++cnt) {
-			File entry = dir.openNextFile();
-			if (!entry) {
-				break;
-			}
-			String output;
-			if (cnt > 0) {
-				output = ',';
-			}
-			output += "{\"type\":\"";
-			output += (entry.isDirectory()) ? "dir" : "file";
-			output += "\",\"name\":\"";
-			output += entry.name();
-			output += "\"}";
-			server.sendContent(output);
-			entry.close();
-			EXTRA_YIELD();
-		}
-		server.sendContent("]");
-		dir.close();
 	}
 	
 	
@@ -610,7 +568,7 @@ void setRTC() {
 		dataFile.close();
 	}
 #else
-	#ifdef FS_SPIFFS
+	#if FS_TYPE == FS_SPIFFS
 		void loadConfig() {
 			String line;
 		 	File dataFile = SPIFFS.open("/CONFIG.TXT", "r");
@@ -628,35 +586,7 @@ void setRTC() {
 			}
 			
 		}
-		void printDirectory() {
-			if(!server.hasArg("dir")) {
-				return returnFail("BAD ARGS");
-			}
-			String path = server.arg("dir");
-			Dir dir = SPIFFS.openDir((char *)path.c_str());
-			server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-			server.send(200, "text/json", "");
-			server.sendContent("[");
-			Dir auxDir;
-			String auxItemPath;
-			bool firstFlag = true;
-			while (dir.next()) {
-				String output;
-				if (firstFlag) {
-					firstFlag = false;
-				} else {
-					output = ',';
-				}
-				output += "{\"type\":\"file\",\"name\":\"";
-				output += dir.fileName();
-				output += "\"";
-				output += "}";
-				server.sendContent(output);
-				EXTRA_YIELD();
-			}
-			server.sendContent("]");
-		}
-		
+
 		void handleFiles() {
 			String dataType = "text/plain";
 			String path = server.uri();
@@ -713,14 +643,8 @@ void setRTC() {
 		}
 	#else
 		void loadConfig() {}
-		void printNoFS() {
-			returnFail(F("NO FS IN THIS VERSION"));
-		}
-		void printDirectory() {
-			printNoFS();
-		}
 		void handleFiles() {
-			printNoFS();
+			returnFail(F("NO FS IN THIS VERSION"));
 		}
 	#endif
 #endif
@@ -764,7 +688,7 @@ void setupWiFi(void){
 		uint8_t i = 0;
 		while (WiFi.status() != WL_CONNECTED && i++ < 30) {//wait 30 seconds
 			W_DEBUG('.');
-			delay(500);
+			delay(1000);
 		}
 		if(i == 31){
 			W_DEBUG("Could not connect to ");
@@ -792,8 +716,6 @@ void setupWiFi(void){
 
 	server.stop();
 	server.on("/api/resetSD", HTTP_GET, handleResetSD);
-	server.on("/api/list", HTTP_GET, printDirectory);
-	server.on("/api/rtc", HTTP_GET, printRTC);
 	server.on("/api/rtc", HTTP_POST, setRTC);
 	server.on("/api/status", HTTP_GET, handleStatus);
 	
@@ -863,3 +785,14 @@ void loop(void){
 	}
 #endif
 }
+
+
+#ifdef WATERING_LOW_POWER_MODE
+	void goToDeepSleep() {
+
+
+
+		
+	}
+#endif
+

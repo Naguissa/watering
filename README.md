@@ -14,6 +14,10 @@ Also all libraries used are Arduino-copatible, so should be possible to adapt th
  * Get the ZIP.
  * Get my uRTCLib library: You can look at Arduino IDE library manager or download it from https://github.com/Naguissa/uRTCLib
  * If you want to use MQTT, get Nick O'Leary PubSub Library (MQTT functionality). It's available on Arduino IDE's Library Manager. Also see http://pubsubclient.knolleary.net/
+ * If you want to use DHT sensor, get DHT sensor library by Adafruit and its dependencies. All are available on Arduino IDE's Library Manager:
+  - Adafruit Unified Sensor by Adafruit: https://github.com/adafruit/Adafruit_Sensor
+  - DHT Sensor Library by Adafruit: https://github.com/adafruit/DHT-sensor-library
+
  * You can edit .h file to configure watering system with your options (filesystem, connection pins, negate logic devices, etc)
  * Upload sketch to microcontroller
  * Prepare extra data:
@@ -25,19 +29,12 @@ Also all libraries used are Arduino-copatible, so should be possible to adapt th
 
 (piece pin -- NodeMCU v3 pin)
 
+### Common ###
+
 RTC:
  * SDA -- D3
  * SCL -- D4
  * VCC -- 3V 
- * GND -- G
-  
-SD-Card reader, optional:
- * MISO -- D6
- * SCK -- D5
- * MOSI -- D7
- * CS -- D8
- * 5V -- UNCONNECTED!
- * 3.3V -- 3V
  * GND -- G
   
 Relay:
@@ -46,12 +43,6 @@ Relay:
  * GND -- G
  * VCC -- 3V
   
-Soil Sensor:
- * AO -- A0 (remember using a voltage divissor if your oard doesn't have it built-in)
- * DO -- Not connected
- * GND -- G
- * VCC - D0 (digital pin here to connect/disconnect sensor as needed)
-
 Water level switch (with VCC and GND):
  * VCC - 3V
  * GND - G
@@ -60,12 +51,48 @@ Water level switch (with VCC and GND):
 Water level switch (mechanical). Pin uses PULLUP mode:
  * COM - G
  * NO -- D2
- * Water pump:
+ 
+Water pump:
  * VCC -- relay NO
  * GND -- G
 
 Eletrovalve:
  * Can be done as Water pump or connect as the relay, if it is low power one.
+
+
+### With SD-card, not compatible with low power mode or DHT11, DHT21 or DHT22 ###
+
+SD-Card reader, optional:
+ * MISO -- D6
+ * SCK -- D5
+ * MOSI -- D7
+ * CS -- D8
+ * 5V -- UNCONNECTED!
+ * 3.3V -- 3V
+ * GND -- G
+
+Soil Sensor:
+ * AO -- A0 (remember using a voltage divissor if your oard doesn't have it built-in)
+ * DO -- Not connected
+ * GND -- G
+ * VCC - D10 (digital pin here to connect/disconnect sensor as needed)
+
+### Without SD-card, compatible with low power mode and/or DHT11, DHT21 or DHT22 ###
+
+* Note: You can use SPIFFS for storage or directly nothing.
+  
+Soil Sensor:
+ * AO -- A0 (remember using a voltage divissor if your oard doesn't have it built-in)
+ * DO -- Not connected
+ * GND -- G
+ * VCC - D5 (digital pin here to connect/disconnect sensor as needed)
+  
+DHT11/21/22:
+ * Pin1, VCC -- D7 (Could be D5, shared with Soil Sensor, as follow same opperation pattern)
+ * Pin2, DATA -- D6
+ * Pin4, GND -- G
+ 
+* Remember 10K resistor between HDT pin1 and pin2.
 
 
 ## Who do I talk to? ##
