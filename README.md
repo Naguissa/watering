@@ -23,7 +23,7 @@ Also all libraries used are Arduino-copatible, so should be possible to adapt th
  * Prepare extra data:
   * If you want to use SD-card, format SD-card as FAT and copy files in data/ folder to SD-card.
   * If you want to use SPIFFS instead an SD-card, upload extra data at Arduino IDE -> Tools -> ESP8266 Sketch Data Upload
-  * If no logs and extras, simply do nothing (except enable that option in sketch).
+  * If no logs and extras, simply do nothing (except enable that option in .h file).
 
 ## Connections on NodeMCU v3 ##
 
@@ -67,7 +67,7 @@ SD-Card reader, optional:
  * SCK -- D5
  * MOSI -- D7
  * CS -- D8
- * 5V -- UNCONNECTED!
+ * 5V -- Not connected
  * 3.3V -- 3V
  * GND -- G
 
@@ -82,17 +82,17 @@ Soil Sensor:
 * Note: You can use SPIFFS for storage or directly nothing.
   
 Soil Sensor:
- * AO -- A0 (remember using a voltage divissor if your oard doesn't have it built-in)
+ * AO -- A0 (remember using a voltage divissor if your board doesn't have it built-in)
  * DO -- Not connected
  * GND -- G
- * VCC - D5 (digital pin here to connect/disconnect sensor as needed)
+ * VCC -- D5 (digital pin to connect/disconnect sensor as needed)
   
 DHT11/21/22:
  * Pin1, VCC -- D7 (Could be D5, shared with Soil Sensor, as follow same opperation pattern)
  * Pin2, DATA -- D6
  * Pin4, GND -- G
  
-* Remember 10K resistor between HDT pin1 and pin2.
+ * Remember 10K resistor between HDT pin1 and pin2.
 
 
 ## Who do I talk to? ##
