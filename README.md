@@ -92,7 +92,7 @@ DHT11/21/22:
  * Pin2, DATA -- D6
  * Pin4, GND -- G
  
- * Remember 10K resistor between HDT pin1 and pin2.
+ * Remember 10K resistor between DHT pin1 and pin2.
 
 
 ## Who do I talk to? ##
