@@ -13,11 +13,19 @@
 #define WATERING_DEBUG
 
 // Comment to disable MQTT support
-#define WATERING_MQTT
+//#define WATERING_MQTT
+
+// Comment to disable OTA support
+#define OTA_ENABLED
+
+// Comment to disable web browser update support
+//#define WEB_UPDATE_ENABLED
+
+
 
 // If uncommented, enables low power mode: gets MCU to sleep when detects a long period of waiting time.
 // Not compatible with FS_SD_CARD
-#define WATERING_LOW_POWER_MODE
+//#define WATERING_LOW_POWER_MODE
 
 // For different sensors, positive or neative ones
 // Out Of Water sensor
@@ -80,10 +88,11 @@ int soilSensorMaxLevel = 550; // Avobe this level pump stops. Remember, 10-bit o
 char *reportingApiKey = NULL;
 char* ssid = NULL;
 char* password = NULL;
+char* mdnshostname = NULL;
 
 // Fixed IPs to speed-up connections
-//IPAddress* mqttIp = NULL;
-//IPAddress* apiIp = NULL;
+IPAddress* mqttIp = NULL;
+IPAddress* apiIp = NULL;
 IPAddress* wifiIp = NULL;
 IPAddress* wifiNet = NULL;
 IPAddress* wifiGW = NULL;
@@ -109,6 +118,7 @@ IPAddress* wifiDNS2 = NULL;
  * Function declarations
  ******************************* */
 void parseConfigIpValue(IPAddress**, char *);
+void parseConfigString(char **, String *);
 void parseConfigLine(String);
 void doReport();
 void report();
@@ -130,12 +140,20 @@ void setupWiFi(void);
 void setupMandatoryInitialValues();
 void setup(void);
 void loop(void);
+bool saveConfig(void);
+void handleSave(void);
 #ifdef WATERING_DEBUG
 	void debugStatus();
 #endif
 #ifdef WATERING_LOW_POWER_MODE
 	void goToDeepSleep();
 #endif
+#ifdef OTA_ENABLED
+	void setupOTA(void);
+#endif
+
+
+
 
 /** Status global variables **/
 char lastReport[512]; // Take care, very long string

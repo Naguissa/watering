@@ -18,7 +18,7 @@
 			method: 'GET',
 			dataType: 'json'
 		}).done(function (data) {
-			var dtparts = data.date.split(' '), date = dtparts[0].split('/'), time = dtparts[1].split(':')
+			var dtparts = data.date.split(' '), date = dtparts[0].split('-'), time = dtparts[1].split(':')
 			var content = '<h2>Check and set RTC</h2>';
 			content += '<p>Advice: maintain RTC on GMT without DST.</p>';
 			content += '<div class="rtc">';
@@ -56,6 +56,23 @@
 	}
 	
 	
+	function setConfig() {
+		var data = {};
+		$.each($('form.app-save-status input'), function (i, el) {
+			var $el = $(el);
+			data[$el.attr('name')] = $el.val();
+		});
+		$.ajax({
+			url: '/api/save',
+			method: 'POST',
+			data: data,
+			dataType: 'json'
+		}).done(function (data) {
+			document.location.reload();
+		});
+	}
+	
+	
 	
 	
 	$("#app-sd").on('click', function(e) {
@@ -82,12 +99,12 @@
 	
 	$('body').on('click', "#app-config-set", function(e) {
 		e.preventDefault();
-		setRTC();
+		setConfig();
 		return false;
 	});
 	
 	
-	var editableStatusFields = {"soilSensorMinLevel": true, "soilSensorMaxLevel": true, "timeReportMilis": true, "timeWarmingMilis": true };
+	var editableStatusFields = {"soilSensorMinLevel": true, "soilSensorMaxLevel": true, "timeReadMilisStandBy": true, "timeReadMilisWatering": true, "timeWarmingMilis": true };
 	
 	
 	function getStatus(force) {
@@ -97,32 +114,30 @@
 			dataType: 'json'
 		}).done(function (data) {
 			if (force || $('#content .status').length) {
-				var content = '<h2>Status</h2>';
+				var content = '<h2>Status</h2><form class="app-save-status">';
 				content += '<div class="status">';
 				$.each(data, function (n, v) {
 					content += '<div><label for="' + n + '">' + n + '</label>';
-					if (editableStatusFields[n]) {
+					if (typeof editableStatusFields[n] !== 'undefined' && editableStatusFields[n]) {
 						content += '<input type="text" name="' + n + '" value="' + v + '">';
 					} else {
 						content += '<span> ' + v + '</span>';
 					}
-					content += '<div><button type="button" name="set" id="app-config-set"> Save configuration </button></div>';
 					content += '</div>';
-					
-					
 				});
+			content += '<div><button type="button" name="set" id="app-config-set"> Save configuration </button></div></form>';
 			$('#content').html(content);
 			}
 		});
 	}
 	
-	$('.app-status').on('click', function () { getStatus(true); });
+	$('.app-status').on('click', function (e) { e.preventDefault(); getStatus(true); });
 	
 	setInterval(function() {
 		if ($('#content .status').length) {
 			getStatus(false);
 		}
-	}, 2500);
+	}, 30000);
 	
 	
 }());

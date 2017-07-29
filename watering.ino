@@ -1,24 +1,33 @@
-#include <SPI.h>
+/**
+ * See Watering.h for config and options
+ */
 
+#include <SPI.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
-//#include <ESP8266mDNS.h>
-
+#include <ESP8266mDNS.h>
+#include "watering.h"
+#ifdef WATERING_DEBUG
+	#include <GDBStub.h>
+#endif
+#ifdef OTA_ENABLED
+	#include <WiFiUdp.h>
+	#include <ArduinoOTA.h>
+#endif
+#ifdef WEB_UPDATE_ENABLED
+	#include <ESP8266HTTPUpdateServer.h>
+#endif
 #include <Wire.h>
 #include <SPI.h>
 
-
-
 #include <uRTCLib.h>
-#include "watering.h"
 
 
 #ifdef WATERING_DHTTYPE
 	#include <Adafruit_Sensor.h>
 	#include <DHT.h>
 	#include <DHT_U.h>
-
 	DHT_Unified dht(WATERING_DHT_PIN, WATERING_DHTTYPE);
 #endif
 
@@ -30,14 +39,16 @@
 	}
 #endif
 
-/**
- * See Watering.h for config and options
- */
 
 
 
 
 ESP8266WebServer server(80);
+
+#ifdef WEB_UPDATE_ENABLED
+	ESP8266HTTPUpdateServer httpUpdater;
+#endif
+
 
 
 uRTCLib rtc;
@@ -74,6 +85,17 @@ void parseConfigIpValue(IPAddress**dest, char * value) {
 		W_DEBUGLN(F("IP parse OK."));
 	}		
 	return;
+}
+
+void parseConfigString(char ** dest, String * value) {
+		if (*dest) {
+			free(*dest);
+		}
+		*dest = (char *) malloc(value->length() + 1);
+		char tmpbuffer[200];
+		value->toCharArray(tmpbuffer, 200);
+		strcpy(*dest, tmpbuffer);
+		*(dest + value->length()) = '\0';
 }
 
 void parseConfigLine(String line) {
@@ -114,33 +136,13 @@ void parseConfigLine(String line) {
 	} else if (variable.equals("timeWarmingMilis")) {
 		timeWarmingMilis = value.toInt();
 	} else if (variable.equals("ApiKey")) {
-		if (reportingApiKey) {
-			free(reportingApiKey);
-		}
-		reportingApiKey = (char *) malloc(value.length() + 1);
-		char tmpbuffer[200];
-		value.toCharArray(tmpbuffer, 200);
-		strcpy(reportingApiKey, tmpbuffer);
-		reportingApiKey[value.length()] = '\0';
+		parseConfigString(&reportingApiKey, &value);
 	} else if (variable.equals("ssid")) {
-		if (ssid) {
-			free(ssid);
-		}
-		ssid = (char *) malloc(value.length() + 1);
-		char tmpbuffer[200];
-		value.toCharArray(tmpbuffer, 200);
-		strcpy(ssid, tmpbuffer);
-		ssid[value.length()] = '\0';
+		parseConfigString(&ssid, &value);
 	} else if (variable.equals("password")) {
-		if (password) {
-			free(password);
-		}
-		password = (char *) malloc(value.length() + 1);
-		char tmpbuffer[200];
-		value.toCharArray(tmpbuffer, 200);
-		strcpy(password, tmpbuffer);
-		password[value.length()] = '\0';
-/* Disabled by now...
+		parseConfigString(&password, &value);
+	} else if (variable.equals("hostname")) {
+		parseConfigString(&mdnshostname, &value);
 	} else if (variable.equals("mqttIp")) {
 		char tmpbuffer[200];
 		value.toCharArray(tmpbuffer, 200);
@@ -149,7 +151,6 @@ void parseConfigLine(String line) {
 		char tmpbuffer[200];
 		value.toCharArray(tmpbuffer, 200);
 		parseConfigIpValue(&apiIp, tmpbuffer);
-*/
 	} else if (variable.equals("wifiIp")) {
 		char tmpbuffer[200];
 		parseConfigIpValue(&wifiIp, tmpbuffer);
@@ -182,9 +183,9 @@ void doReport() {
 	rtc.refresh();
 	EXTRA_YIELD();
 	#ifdef WATERING_DHTTYPE
-		sprintf(lastReport, "{\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"lastSoilSensorActivationTime\": \"%u\",\"lastSoilSensorReadTime\": \"%u\",\"lastSoilSensorRead\":\"%d\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\",\"hasSD\":\"%d\",\"temp\":\"%d\",\"hum\":\"%d\",\"actMilis\":\"%d\"}", rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, dht_t, dht_h, actMilis);
+		sprintf(lastReport, "{\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReadMilisStandBy\":\"%u\",\"timeReadMilisWatering\":\"%u\",\"timeWarmingMilis\":\"%u\",\"lastSoilSensorActivationTime\": \"%u\",\"lastSoilSensorReadTime\": \"%u\",\"lastSoilSensorRead\":\"%d\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\",\"hasSD\":\"%d\",\"temp\":\"%d\",\"hum\":\"%d\",\"actMilis\":\"%d\"}", rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, timeReadMilisStandBy, timeReadMilisWatering, timeWarmingMilis, lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, dht_t, dht_h, actMilis);
 	#else
-		sprintf(lastReport, "{\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"lastSoilSensorActivationTime\": \"%u\",\"lastSoilSensorReadTime\": \"%u\",\"lastSoilSensorRead\":\"%d\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\",\"hasSD\":\"%d\",\"actMilis\":\"%d\"}", rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, actMilis);
+		sprintf(lastReport, "{\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReadMilisStandBy\":\"%u\",\"timeReadMilisWatering\":\"%u\",\"timeWarmingMilis\":\"%u\",\"lastSoilSensorActivationTime\": \"%u\",\"lastSoilSensorReadTime\": \"%u\",\"lastSoilSensorRead\":\"%d\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\",\"hasSD\":\"%d\",\"actMilis\":\"%d\"}", rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, timeReadMilisStandBy, timeReadMilisWatering, timeWarmingMilis, lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, actMilis);
 	#endif
 }
 
@@ -222,17 +223,17 @@ void report() {
 		EXTRA_YIELD();
 
 	  	// This will send the request to the server
-	  	client.println(String(F("POST /arduino/api/")) + reportingApiKey + F("/store?_femode=2 HTTP/1.1"));
-	  	client.print(F("Host: "));
+	  	client.println(String("POST /arduino/api/") + reportingApiKey + "/store?_femode=2 HTTP/1.1");
+	  	client.print("Host: ");
 	  	client.println(host);
-		client.println(F("Cache-Control: no-cache"));
-		client.println(F("Content-Type: application/x-www-form-urlencoded"));
-		client.print(F("Content-Length: "));
+		client.println("Cache-Control: no-cache");
+		client.println("Content-Type: application/x-www-form-urlencoded");
+		client.print("Content-Length: ");
 		client.println(strlen(lastReport) + 5);
 		client.println();
-		client.print(F("data="));
+		client.print("data=");
 		client.println(lastReport);
-	  	client.println(F("Connection: close\r\n"));
+	  	client.println("Connection: close\r\n");
 	  	delay(10);
 	
 	  	// Read all the lines of the reply from server and print them to Serial
@@ -274,7 +275,7 @@ void handleStatus() {
 	WiFiClient client = server.client();
 	doReport();
 	server.sendContent(lastReport);
-	W_DEBUGLN(F("Status call"));
+	W_DEBUGLN("Status call");
 	EXTRA_YIELD();
 }
 
@@ -310,12 +311,16 @@ void soilSensorChecks() {
 			return;
 		}
 		
-		unsigned long nextSoilSensorReadTime = lastSoilSensorReadTime + (pumpRunning == PUMP_STATUS_ON ? timeReadMilisWatering : timeReadMilisStandBy);
+		unsigned long nextSoilSensorReadTime = lastSoilSensorReadTime + (lastSoilSensorRead == -1 || lastSoilSensorRead < soilSensorMinLevel || pumpRunning == PUMP_STATUS_ON ? timeReadMilisWatering : timeReadMilisStandBy);
 
 		// Next read overflow control
-		if (nextSoilSensorReadTime < lastSoilSensorReadTime || nextSoilSensorReadTime + 12500 < actMilis) { // overflow control, add 12,5s comparing to actMilis because execution time & activation
-			W_DEBUGLN(F("Next read overflow"));
-			lastSoilSensorActivationTime = actMilis;
+		if (nextSoilSensorReadTime < lastSoilSensorReadTime || nextSoilSensorReadTime + 30000 < actMilis) { // overflow control, add 30s comparing because execution time & activation
+			W_DEBUG(F("Next read overflow: "));
+			W_DEBUGLN(nextSoilSensorReadTime);
+			lastSoilSensorActivationTime = (actMilis - timeWarmingMilis);
+			if (lastSoilSensorActivationTime > actMilis) {
+				lastSoilSensorActivationTime = 0;
+			}
 			lastSoilSensorReadTime = actMilis;
 			return;
 		}
@@ -325,7 +330,6 @@ void soilSensorChecks() {
 			lastSoilSensorRead = analogRead(SOIL_SENSOR_READ_PIN);
 			EXTRA_YIELD();
 			lastSoilSensorReadTime = actMilis;
-			// Recalculate next read to decide if it's appropiate to power off sensor
 			W_DEBUGLN(F("Sensor read!"));
 			EXTRA_YIELD();
 
@@ -345,7 +349,6 @@ void soilSensorChecks() {
 			EXTRA_YIELD();
 			return;
 		}
-		nextSoilSensorReadTime = lastSoilSensorReadTime + (lastSoilSensorRead > soilSensorMinLevel || pumpRunning == PUMP_STATUS_ON ? timeReadMilisWatering : timeReadMilisStandBy);
 		if (nextSoilSensorReadTime > actMilis + timeWarmingMilis + 1000) { // Next read is after warming cycle; disable sensor
 			W_DEBUGLN(F("Sensor timeout deactivation!"));
 			soilSensorStatus = SOIL_SENSOR_STATUS_OFF;
@@ -567,6 +570,115 @@ void setRTC() {
 	 	}
 		dataFile.close();
 	}
+
+
+	bool saveConfig() {
+		FILE configFile = SD.open("/CONFIG.TXT", FILE_WRITE);
+		if (configFile) {
+			configFile.println(F("# syntax:"));
+			configFile.println(F("# variable = value"));
+			configFile.println(F("# (spaces doesn't care)"));
+			configFile.println(F("# Valid variables"));
+			configFile.println(F("#  wifi_mode - (A-AP, S -or other- - Station"));
+			configFile.println(F("#  ssid - Network SSID "));
+			configFile.println(F("#  password - Network password (not set for none)"));
+			configFile.println(F("#  soilSensorMinLevel - Level when pump STOPS working (remember, soil sensor returns 0 when fully wet)"));
+			configFile.println(F("#  soilSensorMaxLevel - Level when pump STARTS working (remember, soil sensor returns 0 when fully wet)"));
+			configFile.println(F("#  timeReadMilisStandBy - Time between sensor reads when pump is NOT active"));
+			configFile.println(F("#  timeReadMilisWatering - Time between sensor reads when pump IS active"));
+			configFile.println(F("#  timeReportMilis - ms between reports to server. Also, ms between two reads"));
+			configFile.println(F("#  timeWarmingMilis - ms warming sensor before read. Sensor is stopped when pump is not working and is powered each timeReportMilis"));
+			configFile.println(F("#  ApiKey - Get one at http://www.foroelectro.net/arduino"));
+			configFile.println(F("# Comments: lines starting with #, ; or //"));
+			configFile.print(F("wifi_mode = "));
+			configFile.println(wifi_mode);
+			if (ssid != NULL && ssid && strlen(ssid)) {
+				configFile.print(F("ssid = "));
+				configFile.println(ssid);
+			} else {
+				configFile.println(F(";ssid = <Your WiFi SSID>"));
+			}
+			if (password != NULL && password && strlen(password)) {
+				configFile.print(F("password = "));
+				configFile.println(password);
+			} else {
+				configFile.println(F(";ssid = <Your WiFi password>"));
+			}
+			configFile.print(F("soilSensorMinLevel = "));
+			configFile.println(soilSensorMinLevel);
+			configFile.print(F("soilSensorMaxLevel = "));
+			configFile.println(soilSensorMaxLevel);
+			configFile.print(F("timeReadMilisStandBy = "));
+			configFile.println(timeReadMilisStandBy);
+			configFile.print(F("timeReadMilisWatering = "));
+			configFile.println(timeReadMilisWatering);
+			configFile.print(F("timeWarmingMilis = "));
+			configFile.println(timeWarmingMilis);
+			if (reportingApiKey != NULL && reportingApiKey && strlen(reportingApiKey)) {
+				configFile.print(F("ApiKey = "));
+				configFile.println(reportingApiKey);
+			} else {
+				configFile.println(F(";ApiKey = Get one at https://www.foroelectro.net/arduino/"));
+			}
+//			if (mqttIp != NULL && mqttIp && strlen(mqttIp)) {
+//				configFile.print(F("mqttIp = "));
+//				configFile.println(mqttIp);
+//			} else {
+//				configFile.println(F(";mqttIp = <ip from mqtt server ip; check https://www.foroelectro.net/arduino/en/mqtt-doc>"));
+//			}
+//			if (apiIp != NULL && apiIp && strlen(apiIp)) {
+//				configFile.print(F("apiIp = "));
+//				configFile.println(apiIp);
+//			} else {
+//				configFile.println(F(";apiIp = <ip from api server ip; check https://www.foroelectro.net/arduino>"));
+//			}
+/* ToDo: IP to STR 	
+
+			if (wifiIp) {
+				configFile.print(F("wifiIp = "));
+				configFile.println(wifiIp);
+			} else {
+				configFile.println(F(";wifiIp = <local static IP>"));
+			}
+			if (wifiNet) {
+				configFile.print(F("wifiNet = "));
+				configFile.println(wifiNet);
+			} else {
+				configFile.println(F(";wifiNet = <local static NetMask>"));
+			}
+			if (wifiGW) {
+				configFile.print(F("wifiGW = "));
+				configFile.println(wifiGW);
+			} else {
+				configFile.println(F(";wifiGW = <local static Gateway>"));
+			}
+			if (wifiDNS1) {
+				configFile.print(F("wifiDNS1 = "));
+				configFile.println(wifiDNS1);
+			} else {
+				configFile.println(F(";wifiDNS1 = <Static DNS 1>"));
+			}
+			if (wifiDNS2) {
+				configFile.print(F("wifiDNS2 = "));
+				configFile.println(wifiDNS2);
+			} else {
+				configFile.println(F(";wifiDNS2 = <Static DNS 2>"));
+			}
+*/
+				configFile.println(F(";wifiIp = <local static IP>"));
+				configFile.println(F(";wifiNet = <local static NetMask>"));
+				configFile.println(F(";wifiDNS1 = <Static DNS 1>"));
+				configFile.println(F(";wifiDNS2 = <Static DNS 2>"));
+			configFile.close();
+	    	return true;
+		} else {
+			// if the file didn't open, print an error:
+	    	W_DEBUGLN("ERROR saving CONFIG.TXT");
+	    	return false;
+		}
+	}
+
+
 #else
 	#if FS_TYPE == FS_SPIFFS
 		void loadConfig() {
@@ -641,11 +753,117 @@ void setRTC() {
 		 	}
 			dataFile.close();
 		}
+
+
+		bool saveConfig() {
+	    	File configFile = SPIFFS.open("/CONFIG.TXT", "w");
+			if (configFile) {
+				configFile.println(F("# syntax:"));
+				configFile.println(F("# variable = value"));
+				configFile.println(F("# (spaces doesn't care)"));
+				configFile.println(F("# Valid variables"));
+				configFile.println(F("#  wifi_mode - (A-AP, S -or other- - Station"));
+				configFile.println(F("#  ssid - Network SSID "));
+				configFile.println(F("#  password - Network password (not set for none)"));
+				configFile.println(F("#  soilSensorMinLevel - Level when pump STOPS working (remember, soil sensor returns 0 when fully wet)"));
+				configFile.println(F("#  soilSensorMaxLevel - Level when pump STARTS working (remember, soil sensor returns 0 when fully wet)"));
+				configFile.println(F("#  timeReadMilisStandBy - Time between sensor reads when pump is NOT active"));
+				configFile.println(F("#  timeReadMilisWatering - Time between sensor reads when pump IS active"));
+				configFile.println(F("#  timeReportMilis - ms between reports to server. Also, ms between two reads"));
+				configFile.println(F("#  timeWarmingMilis - ms warming sensor before read. Sensor is stopped when pump is not working and is powered each timeReportMilis"));
+				configFile.println(F("#  ApiKey - Get one at http://www.foroelectro.net/arduino"));
+				configFile.println(F("# Comments: lines starting with #, ; or //"));
+				configFile.print(F("wifi_mode = "));
+				configFile.println(wifi_mode);
+				if (ssid != NULL && ssid && strlen(ssid)) {
+					configFile.print(F("ssid = "));
+					configFile.println(ssid);
+				} else {
+					configFile.println(F(";ssid = <Your WiFi SSID>"));
+				}
+				if (password != NULL && password && strlen(password)) {
+					configFile.print(F("password = "));
+					configFile.println(password);
+				} else {
+					configFile.println(F(";ssid = <Your WiFi password>"));
+				}
+				configFile.print(F("soilSensorMinLevel = "));
+				configFile.println(soilSensorMinLevel);
+				configFile.print(F("soilSensorMaxLevel = "));
+				configFile.println(soilSensorMaxLevel);
+				configFile.print(F("timeReadMilisStandBy = "));
+				configFile.println(timeReadMilisStandBy);
+				configFile.print(F("timeReadMilisWatering = "));
+				configFile.println(timeReadMilisWatering);
+				configFile.print(F("timeWarmingMilis = "));
+				configFile.println(timeWarmingMilis);
+				if (reportingApiKey != NULL && reportingApiKey && strlen(reportingApiKey)) {
+					configFile.print(F("ApiKey = "));
+					configFile.println(reportingApiKey);
+				} else {
+					configFile.println(F(";ApiKey = Get one at https://www.foroelectro.net/arduino/"));
+				}
+	//			if (mqttIp != NULL && mqttIp && strlen(mqttIp)) {
+	//				configFile.print(F("mqttIp = "));
+	//				configFile.println(mqttIp);
+	//			} else {
+	//				configFile.println(F(";mqttIp = <ip from mqtt server ip; check https://www.foroelectro.net/arduino/en/mqtt-doc>"));
+	//			}
+	//			if (apiIp != NULL && apiIp && strlen(apiIp)) {
+	//				configFile.print(F("apiIp = "));
+	//				configFile.println(apiIp);
+	//			} else {
+	//				configFile.println(F(";apiIp = <ip from api server ip; check https://www.foroelectro.net/arduino>"));
+	/* ToDo: IP to STR 	
+	
+				if (wifiIp) {
+					configFile.print(F("wifiIp = "));
+					configFile.println(wifiIp);
+				} else {
+					configFile.println(F(";wifiIp = <local static IP>"));
+				}
+				if (wifiNet) {
+					configFile.print(F("wifiNet = "));
+					configFile.println(wifiNet);
+				} else {
+					configFile.println(F(";wifiNet = <local static NetMask>"));
+				}
+				if (wifiGW) {
+					configFile.print(F("wifiGW = "));
+					configFile.println(wifiGW);
+				} else {
+					configFile.println(F(";wifiGW = <local static Gateway>"));
+				}
+				if (wifiDNS1) {
+					configFile.print(F("wifiDNS1 = "));
+					configFile.println(wifiDNS1);
+				} else {
+					configFile.println(F(";wifiDNS1 = <Static DNS 1>"));
+				}
+				if (wifiDNS2) {
+					configFile.print(F("wifiDNS2 = "));
+					configFile.println(wifiDNS2);
+				} else {
+					configFile.println(F(";wifiDNS2 = <Static DNS 2>"));
+				}
+	*/
+					configFile.println(F(";wifiIp = <local static IP>"));
+					configFile.println(F(";wifiNet = <local static NetMask>"));
+					configFile.println(F(";wifiDNS1 = <Static DNS 1>"));
+					configFile.println(F(";wifiDNS2 = <Static DNS 2>"));
+				configFile.close();
+		    	return true;
+			} else {
+				// if the file didn't open, print an error:
+		    	W_DEBUGLN("ERROR saving CONFIG.TXT");
+		    	return false;
+			}
+		}
+	
 	#else
 		void loadConfig() {}
-		void handleFiles() {
-			returnFail(F("NO FS IN THIS VERSION"));
-		}
+		void handleFiles() { returnFail(F("NO FS IN THIS VERSION")); }
+		bool saveConfig() { return false; }
 	#endif
 #endif
 
@@ -659,13 +877,56 @@ void handleResetSD() {
 	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
 	server.send(200, "text/json", "");
 	WiFiClient client = server.client();
-	server.sendContent(F("{resetSD: true}"));
+	server.sendContent(F("{\"resetSD\": true}"));
+}
+
+void handleSave() {
+	String value;
+
+	server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+	server.send(200, "text/json", "");
+	WiFiClient client = server.client();
+
+	value = server.arg("soilSensorMinLevel");
+	if (value != "") {
+		soilSensorMinLevel = value.toInt();
+	}
+
+	value = server.arg("soilSensorMaxLevel");
+	if (value != "") {
+		soilSensorMaxLevel = value.toInt();
+	}
+
+	value = server.arg("timeReadMilisStandBy");
+	if (value != "") {
+		timeReadMilisStandBy = value.toInt();
+	}
+
+	value = server.arg("timeReadMilisWatering");
+	if (value != "") {
+		timeReadMilisWatering = value.toInt();
+	}
+
+	value = server.arg("timeWarmingMilis");
+	if (value != "") {
+		timeWarmingMilis = value.toInt();
+	}
+	
+	server.sendContent(F("{\"save\": "));
+	server.sendContent(saveConfig() ? F("true") : F("false"));
+	server.sendContent(F("}"));
+
+
+
+
+
 }
 
 
 
 
 void setupWiFi(void){
+	server.stop();
 	if (wifi_mode == 'S') {
 		WiFi.mode(WIFI_STA);
 		
@@ -714,15 +975,21 @@ void setupWiFi(void){
 		W_DEBUGLN(WiFi.localIP());
 	}
 
-	server.stop();
-	server.on("/api/resetSD", HTTP_GET, handleResetSD);
-	server.on("/api/rtc", HTTP_POST, setRTC);
-	server.on("/api/status", HTTP_GET, handleStatus);
+	if (wifi_mode != 'S' || WiFi.status() == WL_CONNECTED) {
+		MDNS.begin(mdnshostname);
+		server.on("/api/resetSD", HTTP_GET, handleResetSD);
+		server.on("/api/rtc", HTTP_POST, setRTC);
+		server.on("/api/status", HTTP_GET, handleStatus);
+		server.on("/api/save", HTTP_POST, handleSave);
+		#ifdef WEB_UPDATE_ENABLED
+			httpUpdater.setup(&server);
+		#endif
+  		MDNS.addService("http", "tcp", 80);
+		server.onNotFound(handleFiles);
+		server.begin();
+		W_DEBUGLN(F("HTTP and MDNS server started"));
+	}
 	
-	server.onNotFound(handleFiles);
-	
-	server.begin();
-	W_DEBUGLN("HTTP server started");
 }
 
 
@@ -733,11 +1000,65 @@ void setupMandatoryInitialValues() {
 	ssid = (char *) malloc(15);
 	strcpy(ssid, "WateringSystem");
 	
+	mdnshostname = (char *) malloc(15);
+	strcpy(mdnshostname, "WateringSystem");
+	
 	password = (char *) malloc(1);
 	password[0] = '\0';	
 }
 
-void setup(void){
+
+
+
+#ifdef OTA_ENABLED
+	void setupOTA(void){
+		// Port defaults to 8266
+		// ArduinoOTA.setPort(8266);
+		ArduinoOTA.setHostname("Watering");
+		// No authentication by default
+		// ArduinoOTA.setPassword((const char *)"123");
+		#ifdef WATERING_DEBUG
+			ArduinoOTA.onStart([]() {
+	    		Serial.println("Start");
+	  		});
+			ArduinoOTA.onEnd([]() {
+				Serial.println("\nEnd");
+			});
+			ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+				Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+			});
+			ArduinoOTA.onError([](ota_error_t error) {
+				W_DEBUG("Error[");
+				W_DEBUG(error);
+				W_DEBUG("]: ");
+				switch (error) {
+					case OTA_AUTH_ERROR:
+						W_DEBUGLN("Auth Failed");
+						break;
+					case OTA_BEGIN_ERROR:
+						W_DEBUGLN("Begin Failed");
+						break;
+					case OTA_CONNECT_ERROR:
+						W_DEBUGLN("Connect Failed");
+						break;
+					case OTA_RECEIVE_ERROR:
+						W_DEBUGLN("Receive Failed");
+						break;
+					case OTA_END_ERROR:
+						W_DEBUGLN("End Failed");
+						break;
+					default:
+						W_DEBUGLN("Unknown error");
+				}
+			});
+		#endif
+		ArduinoOTA.begin();
+	}
+#endif
+
+
+void setup(void) {
+	setupOTA();
 	delay(1500);
 	setupMandatoryInitialValues();
 	setupHW();
@@ -759,23 +1080,31 @@ void setup(void){
 
 
 #ifdef WATERING_DEBUG
-void debugStatus() {
-	doReport();
-	W_DEBUG(millis());
-	W_DEBUG(" -- ");
-	W_DEBUGLN(lastReport);
-}
-
-unsigned long int tick = 0;
+	void debugStatus() {
+		doReport();
+		W_DEBUG(millis());
+		W_DEBUG(" -- ");
+		W_DEBUGLN(lastReport);
+	}
+	
+	unsigned long int tick = 0;
 #endif
 
  
 void loop(void){
 	actMilis = millis();
+	#ifdef OTA_ENABLED
+		ArduinoOTA.handle();
+		EXTRA_YIELD();
+	#endif
 	soilSensorLoop();
 	EXTRA_YIELD();
 	server.handleClient();
 	EXTRA_YIELD();
+	if (wifi_mode == 'S' && WiFi.status() != WL_CONNECTED) {
+		setupWiFi();
+	}
+
 
 #ifdef WATERING_DEBUG
 	tick++;
@@ -789,7 +1118,6 @@ void loop(void){
 
 #ifdef WATERING_LOW_POWER_MODE
 	void goToDeepSleep() {
-
 
 
 		
