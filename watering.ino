@@ -194,9 +194,9 @@ void doReport() {
 	rtc.refresh();
 	EXTRA_YIELD();
 	#ifdef WATERING_DHTTYPE
-		sprintf(lastReport, "{\"v\":\"%ud\",\"t\":\"%ud\",[{\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"lastSoilSensorActivationTime\": \"%lu\",\"lastSoilSensorReadTime\": \"%lu\",\"lastSoilSensorRead\":\"%d\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\",\"hasSD\":\"%d\",\"temp\":\"%d\",\"hum\":\"%d\",\"actMilis\":\"%lu\"}]} ", DATA_VERSION, DATA_TYPE_LOG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, dht_t, dht_h, actMilis);
+	sprintf(lastReport, "{\"v\":\"%ud\",\"t\":\"%ud\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"d\":[{\"lastSoilSensorActivationTime\": \"%lu\",\"lastSoilSensorReadTime\": \"%lu\",\"lastSoilSensorRead\":\"%d\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\"}],\"hasSD\":\"%d\",\"temp\":\"%d\",\"hum\":\"%d\",\"actMilis\":\"%lu\"} ", DATA_VERSION, DATA_TYPE_LOG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, dht_t, dht_h, actMilis);
 	#else
-		sprintf(lastReport, "{\"v\":\"%ud\",\"t\":\"%ud\",[{\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"lastSoilSensorActivationTime\": \"%lu\",\"lastSoilSensorReadTime\": \"%lu\",\"lastSoilSensorRead\":\"%ld\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\",\"hasSD\":\"%d\",\"actMilis\":\"%lu\"}]}", DATA_VERSION, DATA_TYPE_LOG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, actMilis);
+	sprintf(lastReport, "{\"v\":\"%ud\",\"t\":\"%ud\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"d\":[{\"lastSoilSensorActivationTime\": \"%lu\",\"lastSoilSensorReadTime\": \"%lu\",\"lastSoilSensorRead\":\"%ld\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\"}],\"hasSD\":\"%d\",\"actMilis\":\"%lu\"}", DATA_VERSION, DATA_TYPE_LOG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, actMilis);
 	#endif
 		EXTRA_YIELD();
 }
@@ -207,7 +207,7 @@ void doReportConfig() {
 	String tmp;
 	char buff[16];
 	EXTRA_YIELD();
-	sprintf(lastReport, "{\"v\":\"%ud\",\"t\":\"%ud\",[{\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReadMilisStandBy\":\"%lu\",\"timeReadMilisWatering\":\"%lu\",\"timeWarmingMilis\":\"%lu\"}]}", DATA_VERSION, DATA_TYPE_CONFIG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, timeReadMilisStandBy, timeReadMilisWatering, timeWarmingMilis);
+	sprintf(lastReport, "{\"v\":\"%ud\",\"t\":\"%ud\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReadMilisStandBy\":\"%lu\",\"timeReadMilisWatering\":\"%lu\",\"timeWarmingMilis\":\"%lu\"}", DATA_VERSION, DATA_TYPE_CONFIG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, timeReadMilisStandBy, timeReadMilisWatering, timeWarmingMilis);
 	EXTRA_YIELD();
 
 	strcat(lastReport, ",\"mqttIp\":");
