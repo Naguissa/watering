@@ -58,12 +58,12 @@
 	
 	function setConfig() {
 		var data = {};
-		$.each($('form.app-save-status input'), function (i, el) {
+		$.each($('form.app-save-config input'), function (i, el) {
 			var $el = $(el);
 			data[$el.attr('name')] = $el.val();
 		});
 		$.ajax({
-			url: '/api/save',
+			url: '/api/config',
 			method: 'POST',
 			data: data,
 			dataType: 'json'
@@ -104,7 +104,26 @@
 	});
 	
 	
-	var editableStatusFields = {"soilSensorMinLevel": true, "soilSensorMaxLevel": true, "timeReadMilisStandBy": true, "timeReadMilisWatering": true, "timeWarmingMilis": true };
+	var editableStatusFields = {"soilSensorMinLevel": true, "soilSensorMaxLevel": true, "timeReadMilisStandBy": true, "timeReadMilisWatering": true, "timeWarmingMilis": true, "mqttIp": true, "apiIp": true, "wifiIp": true, "wifiNet": true, "wifiGW": true, "wifiDNS1": true, "wifiDNS2": true};
+	
+	function _getField(n, v) {
+		var content = '';
+		if (v !== null && typeof v == 'object') {
+			$.each(v, function (ns, vs) {
+				content += _getField(ns, vs);
+			});
+		} else {
+			content = '<div><label for="' + n + '">' + n + '</label>';
+			if (typeof editableStatusFields[n] !== 'undefined' && editableStatusFields[n]) {
+				content += '<input type="text" name="' + n + '" value="' + (v === null ? '' : v) + '">';
+			} else {
+				content += '<span> ' + v + '</span>';
+			}
+			content += '</div>';
+		}
+		return content;
+	}
+	
 	
 	
 	function getStatus(force) {
@@ -114,19 +133,12 @@
 			dataType: 'json'
 		}).done(function (data) {
 			if (force || $('#content .status').length) {
-				var content = '<h2>Status</h2><form class="app-save-status">';
+				var content = '<h2>Status</h2>';
 				content += '<div class="status">';
 				$.each(data, function (n, v) {
-					content += '<div><label for="' + n + '">' + n + '</label>';
-					if (typeof editableStatusFields[n] !== 'undefined' && editableStatusFields[n]) {
-						content += '<input type="text" name="' + n + '" value="' + v + '">';
-					} else {
-						content += '<span> ' + v + '</span>';
-					}
-					content += '</div>';
+					content += _getField(n, v);
 				});
-			content += '<div><button type="button" name="set" id="app-config-set"> Save configuration </button></div></form>';
-			$('#content').html(content);
+			$('#content').html(content + "</div>");
 			}
 		});
 	}
@@ -138,6 +150,24 @@
 			getStatus(false);
 		}
 	}, 30000);
+		
+	function getConfig() {
+		$.ajax({
+			url: '/api/config',
+			method: 'GET',
+			dataType: 'json'
+		}).done(function (data) {
+				var content = '<h2>Config</h2><form class="app-save-config">';
+				content += '<div class="config">';
+				$.each(data, function (n, v) {
+					content += _getField(n, v);
+				});
+			content += '<div><button type="button" name="set" id="app-config-set"> Save configuration </button></div></div></form>';
+			$('#content').html(content);
+		});
+	}
+	
+	$('.app-config').on('click', function (e) { e.preventDefault(); getConfig(); });
 	
 	
 }());

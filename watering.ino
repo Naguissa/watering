@@ -5,7 +5,9 @@
 // Choose IDE, because we need different hacks depending IDE
 #define IDE_ARDUINO 1
 #define IDE_ECLIPSE 2
+
 #define IDE_USED IDE_ECLIPSE
+//#define IDE_USED IDE_ARDUINO
 
 #include <SPI.h>
 #include <ESP8266WiFi.h>
@@ -133,7 +135,7 @@ void parseConfigLine(String line) {
 
 	W_DEBUG(F("CONFIG LINE: "));
 	W_DEBUG(variable);
-	W_DEBUG(F(" =  "));
+	W_DEBUG(F(" = "));
 	W_DEBUGLN(value);
 
 	if (variable.equals("soilSensorMinLevel")) {
@@ -194,9 +196,9 @@ void doReport() {
 	rtc.refresh();
 	EXTRA_YIELD();
 	#ifdef WATERING_DHTTYPE
-	sprintf(lastReport, "{\"v\":\"%ud\",\"t\":\"%ud\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"d\":[{\"lastSoilSensorActivationTime\": \"%lu\",\"lastSoilSensorReadTime\": \"%lu\",\"lastSoilSensorRead\":\"%d\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\"}],\"hasSD\":\"%d\",\"temp\":\"%d\",\"hum\":\"%d\",\"actMilis\":\"%lu\"} ", DATA_VERSION, DATA_TYPE_LOG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, dht_t, dht_h, actMilis);
+	sprintf(lastReport, "{\"v\":\"%u\",\"t\":\"%u\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"d\":[{\"lastSoilSensorActivationTime\": \"%lu\",\"lastSoilSensorReadTime\": \"%lu\",\"lastSoilSensorRead\":\"%d\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\"}],\"hasSD\":\"%d\",\"temp\":\"%d\",\"hum\":\"%d\",\"actMilis\":\"%lu\"} ", DATA_VERSION, DATA_TYPE_LOG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, dht_t, dht_h, actMilis);
 	#else
-	sprintf(lastReport, "{\"v\":\"%ud\",\"t\":\"%ud\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"d\":[{\"lastSoilSensorActivationTime\": \"%lu\",\"lastSoilSensorReadTime\": \"%lu\",\"lastSoilSensorRead\":\"%ld\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\"}],\"hasSD\":\"%d\",\"actMilis\":\"%lu\"}", DATA_VERSION, DATA_TYPE_LOG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, actMilis);
+	sprintf(lastReport, "{\"v\":\"%u\",\"t\":\"%u\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"d\":[{\"lastSoilSensorActivationTime\": \"%lu\",\"lastSoilSensorReadTime\": \"%lu\",\"lastSoilSensorRead\":\"%ld\",\"pumpRunning\":\"%d\",\"outOfWater\":\"%d\",\"soilSensorStatus\":\"%d\"}],\"hasSD\":\"%d\",\"actMilis\":\"%lu\"}", DATA_VERSION, DATA_TYPE_LOG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), lastSoilSensorActivationTime, lastSoilSensorReadTime, lastSoilSensorRead, pumpRunning, outOfWater, soilSensorStatus, hasSD, actMilis);
 	#endif
 		EXTRA_YIELD();
 }
@@ -207,7 +209,7 @@ void doReportConfig() {
 	String tmp;
 	char buff[16];
 	EXTRA_YIELD();
-	sprintf(lastReport, "{\"v\":\"%ud\",\"t\":\"%ud\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReadMilisStandBy\":\"%lu\",\"timeReadMilisWatering\":\"%lu\",\"timeWarmingMilis\":\"%lu\"}", DATA_VERSION, DATA_TYPE_CONFIG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, timeReadMilisStandBy, timeReadMilisWatering, timeWarmingMilis);
+	sprintf(lastReport, "{\"v\":\"%u\",\"t\":\"%u\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReadMilisStandBy\":\"%lu\",\"timeReadMilisWatering\":\"%lu\",\"timeWarmingMilis\":\"%lu\"", DATA_VERSION, DATA_TYPE_CONFIG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, timeReadMilisStandBy, timeReadMilisWatering, timeWarmingMilis);
 	EXTRA_YIELD();
 
 	strcat(lastReport, ",\"mqttIp\":");
@@ -294,7 +296,7 @@ void doReportConfig() {
 	}
 	EXTRA_YIELD();
 
-	strcat(lastReport, "}]}");
+	strcat(lastReport, "}");
 	EXTRA_YIELD();
 }
 
@@ -767,43 +769,36 @@ void handleSetRTC() {
 //			} else {
 //				configFile.println(F(";apiIp = <ip from api server ip; check https://www.foroelectro.net/arduino>"));
 //			}
-/* ToDo: IP to STR
-
 			if (wifiIp) {
 				configFile.print(F("wifiIp = "));
-				configFile.println(wifiIp);
+			configFile.println(wifiIp->toString());
 			} else {
 				configFile.println(F(";wifiIp = <local static IP>"));
 			}
 			if (wifiNet) {
 				configFile.print(F("wifiNet = "));
-				configFile.println(wifiNet);
+			configFile.println(wifiNet->toString());
 			} else {
 				configFile.println(F(";wifiNet = <local static NetMask>"));
 			}
 			if (wifiGW) {
 				configFile.print(F("wifiGW = "));
-				configFile.println(wifiGW);
+			configFile.println(wifiGW->toString());
 			} else {
 				configFile.println(F(";wifiGW = <local static Gateway>"));
 			}
 			if (wifiDNS1) {
 				configFile.print(F("wifiDNS1 = "));
-				configFile.println(wifiDNS1);
+			configFile.println(wifiDNS1->toString());
 			} else {
 				configFile.println(F(";wifiDNS1 = <Static DNS 1>"));
 			}
 			if (wifiDNS2) {
 				configFile.print(F("wifiDNS2 = "));
-				configFile.println(wifiDNS2);
+			configFile.println(wifiDNS2->toString());
 			} else {
 				configFile.println(F(";wifiDNS2 = <Static DNS 2>"));
 			}
-*/
-				configFile.println(F(";wifiIp = <local static IP>"));
-				configFile.println(F(";wifiNet = <local static NetMask>"));
-				configFile.println(F(";wifiDNS1 = <Static DNS 1>"));
-				configFile.println(F(";wifiDNS2 = <Static DNS 2>"));
 			configFile.close();
 	    	return true;
 		} else {

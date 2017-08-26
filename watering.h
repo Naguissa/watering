@@ -1,10 +1,10 @@
 #ifndef __WATERING_H__
-	#define __WATERING_H__
+#define __WATERING_H__
 
-	// Log and web server filesystem definitions; don't hange
-	#define FS_NONE 0
-	#define FS_SD_CARD 1
-	#define FS_SPIFFS 2
+// Log and web server filesystem definitions; don't hange
+#define FS_NONE 0
+#define FS_SD_CARD 1
+#define FS_SPIFFS 2
 
 	#define FS_TYPE FS_SPIFFS
 
@@ -181,6 +181,12 @@ void handleSaveConfig(void);
 	#endif
 
 
+// For different sensors, positive or neative ones
+// Out Of Water sensor
+//  - Negative sensor:
+#define OOW_READ_EXTRA_FUN(x) not(x)
+//  - Positive sensor:
+//#define OOW_READ_EXTRA_FUN(x) x
 
 
 	// ChipSelect form SD reader connected to SPI
@@ -193,15 +199,6 @@ void handleSaveConfig(void);
 
 
 
-	#ifdef ESP8266
-#define EXTRA_YIELD() yield()
-	#else
-#define EXTRA_YIELD()
-	#endif
-
-
-
-
 	#if defined(WATERING_LOW_POWER_MODE) && FS_TYPE == FS_SD_CARD
 		#error "Low power mode cannot be active at the same time as FS_SD_CARD"
 	#endif
@@ -210,10 +207,53 @@ void handleSaveConfig(void);
 		#error "DHT functionality cannot be active at the same time as FS_SD_CARD"
 	#endif
 
-	// Done to support new report systems
+
+#ifdef WATERING_DEBUG
+	#define W_DEBUG(a) Serial.print(a)
+	#define W_DEBUGLN(a) Serial.println(a)
+	#define W_DEBUG2(a, b) Serial.print(a, b)
+	#define W_DEBUGLN2(a, b) Serial.println(a, b)
+#else
+	#define W_DEBUG(a)
+	#define W_DEBUGLN(a)
+	#define W_DEBUG2(a, b)
+	#define W_DEBUGLN2(a, b)
+#endif
+
+
 #define DATA_VERSION 2
 #define DATA_TYPE_LOG 1
 #define DATA_TYPE_CONFIG 2
 
+
+
+
+// ChipSelect form SD reader connected to SPI
+//#define WATERING_SD_CS 4
+
+
+//Usually not needed to change (RTC and EEPROM):
+//#define URTCLIB_ADDRESS 0x68
+//#define URTCLIB_EE_ADDRESS 0x57
+
+
+
+#ifdef ESP8266
+	#define EXTRA_YIELD() yield()
+#else
+	#define EXTRA_YIELD()
 #endif
 
+
+
+#if defined(WATERING_LOW_POWER_MODE) && FS_TYPE == FS_SD_CARD
+	#error "Low power mode cannot be active at the same time as FS_SD_CARD"
+#endif
+
+#if defined(WATERING_DHTTYPE) && FS_TYPE == FS_SD_CARD
+	#error "DHT functionality cannot be active at the same time as FS_SD_CARD"
+#endif
+
+
+
+#endif
