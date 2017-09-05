@@ -18,7 +18,7 @@
 	#define OTA_ENABLED
 
 	// Comment to disable web browser update support
-	//#define WEB_UPDATE_ENABLED
+#define WEB_UPDATE_ENABLED
 
 
 	// If uncommented, enables low power mode: gets MCU to sleep when detects a long period of waiting time.
@@ -151,6 +151,7 @@ void handleSaveConfig(void);
 	#ifdef OTA_ENABLED
 		void setupOTA(void);
 	#endif
+void WifiEvents(WiFiEvent_t);
 
 
 
@@ -235,6 +236,14 @@ void handleSaveConfig(void);
 //Usually not needed to change (RTC and EEPROM):
 //#define URTCLIB_ADDRESS 0x68
 //#define URTCLIB_EE_ADDRESS 0x57
+
+
+	//Wifi Connection Status, to handle actul wifi reconnection problems:
+#define WIFI_STATUS_DISCONNECTED 0
+#define WIFI_STATUS_CONNECTED 1
+
+char wifiConnectionStatus = WIFI_STATUS_DISCONNECTED;
+
 
 
 

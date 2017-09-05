@@ -157,31 +157,32 @@ void parseConfigLine(String line) {
 	} else if (variable.equals("hostname")) {
 		parseConfigString(&mdnshostname, &value);
 	} else if (variable.equals("mqttIp")) {
-		char tmpbuffer[200];
-		value.toCharArray(tmpbuffer, 200);
+		char tmpbuffer[20];
+		value.toCharArray(tmpbuffer, 20);
 		parseConfigIpValue(&mqttIp, tmpbuffer);
 	} else if (variable.equals("apiIp")) {
-		char tmpbuffer[200];
-		value.toCharArray(tmpbuffer, 200);
+		char tmpbuffer[20];
+		value.toCharArray(tmpbuffer, 20);
 		parseConfigIpValue(&apiIp, tmpbuffer);
 	} else if (variable.equals("wifiIp")) {
-		char tmpbuffer[200];
+		char tmpbuffer[20];
+		value.toCharArray(tmpbuffer, 20);
 		parseConfigIpValue(&wifiIp, tmpbuffer);
 	} else if (variable.equals("wifiNet")) {
-		char tmpbuffer[200];
-		value.toCharArray(tmpbuffer, 200);
+		char tmpbuffer[20];
+		value.toCharArray(tmpbuffer, 20);
 		parseConfigIpValue(&wifiNet, tmpbuffer);
 	} else if (variable.equals("wifiGW")) {
-		char tmpbuffer[200];
-		value.toCharArray(tmpbuffer, 200);
+		char tmpbuffer[20];
+		value.toCharArray(tmpbuffer, 20);
 		parseConfigIpValue(&wifiGW, tmpbuffer);
 	} else if (variable.equals("wifiDNS1")) {
-		char tmpbuffer[200];
-		value.toCharArray(tmpbuffer, 200);
+		char tmpbuffer[20];
+		value.toCharArray(tmpbuffer, 20);
 		parseConfigIpValue(&wifiDNS1, tmpbuffer);
 	} else if (variable.equals("wifiDNS2")) {
-		char tmpbuffer[200];
-		value.toCharArray(tmpbuffer, 200);
+		char tmpbuffer[20];
+		value.toCharArray(tmpbuffer, 20);
 		parseConfigIpValue(&wifiDNS2, tmpbuffer);
 	} else if (variable.equals("wifi_mode")) {
 		wifi_mode = value.charAt(0);
@@ -209,7 +210,7 @@ void doReportConfig() {
 	String tmp;
 	char buff[16];
 	EXTRA_YIELD();
-	sprintf(lastReport, "{\"v\":\"%u\",\"t\":\"%u\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReadMilisStandBy\":\"%lu\",\"timeReadMilisWatering\":\"%lu\",\"timeWarmingMilis\":\"%lu\"", DATA_VERSION, DATA_TYPE_CONFIG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, timeReadMilisStandBy, timeReadMilisWatering, timeWarmingMilis);
+	sprintf(lastReport, "{\"v\":\"%u\",\"t\":\"%u\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReadMilisStandBy\":\"%lu\",\"timeReadMilisWatering\":\"%lu\",\"timeWarmingMilis\":\"%lu\",\"wifi_mode\":\"%c\"", DATA_VERSION, DATA_TYPE_CONFIG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, timeReadMilisStandBy, timeReadMilisWatering, timeWarmingMilis, wifi_mode);
 	EXTRA_YIELD();
 
 	strcat(lastReport, ",\"mqttIp\":");
@@ -1174,6 +1175,10 @@ void handleSaveConfig() {
 
 void setupWiFi(void){
 	server.stop();
+	WiFi.disconnect();
+//	WiFi.setAutoConnect(true);
+	WiFi.setAutoReconnect(false);
+
 	if (wifi_mode == 'S') {
 		WiFi.mode(WIFI_STA);
 
@@ -1194,15 +1199,16 @@ void setupWiFi(void){
 		WiFi.begin(ssid, password);
 		// Wait for connection
 		uint8_t i = 0;
-		while (WiFi.status() != WL_CONNECTED && i++ < 30) {//wait 30 seconds
+		while (WiFi.status() != WL_CONNECTED && i++ < 30) { //wait 30*2 seconds
 			W_DEBUG('.');
-			delay(1000);
+			delay(2000);
 		}
 		if(i == 31){
 			W_DEBUG("Could not connect to ");
 			W_DEBUGLN(ssid);
 			return;
 		}
+		wifiConnectionStatus = WIFI_STATUS_CONNECTED;
 		W_DEBUG("Connected! IP address: ");
 		W_DEBUGLN(WiFi.localIP());
 
@@ -1219,10 +1225,11 @@ void setupWiFi(void){
 		// Static DNS(s)
  		WiFi.softAP(ssid, password);
 		W_DEBUG("SoftAP created! IP address: ");
-		W_DEBUGLN(WiFi.localIP());
+		W_DEBUGLN(WiFi.softAPIP());
+		wifiConnectionStatus = WIFI_STATUS_CONNECTED;
 	}
 
-	if (wifi_mode != 'S' || WiFi.status() == WL_CONNECTED) {
+	if (wifiConnectionStatus == WIFI_STATUS_CONNECTED) {
 		MDNS.begin(mdnshostname);
 		server.on("/api/resetSD", HTTP_GET, handleResetSD);
 		server.on("/api/rtc", HTTP_POST, handleSetRTC);
@@ -1230,7 +1237,7 @@ void setupWiFi(void){
 		server.on("/api/config", HTTP_GET, handleGetConfig);
 		server.on("/api/config", HTTP_POST, handleSaveConfig);
 		#ifdef WEB_UPDATE_ENABLED
-			httpUpdater.setup(&server);
+		httpUpdater.setup(&server, "/update");
 		#endif
   		MDNS.addService("http", "tcp", 80);
 		server.onNotFound(handleFiles);
@@ -1315,6 +1322,7 @@ void setup(void) {
     loadConfig();
     W_DEBUGLN(F("Config OK"));
 
+	WiFi.onEvent(WifiEvents);
 	setupWiFi();
     W_DEBUGLN(F("Wifi OK"));
     W_DEBUGLN(F("-- Setup done --"));
@@ -1349,19 +1357,100 @@ void loop(void){
 	EXTRA_YIELD();
 	server.handleClient();
 	EXTRA_YIELD();
-	if (wifi_mode == 'S' && WiFi.status() != WL_CONNECTED) {
+	if ((wifi_mode == 'S' && WiFi.status() != WL_CONNECTED) /* || strcmp(WiFi.SSID().c_str(), ssid) != 0 */ || wifiConnectionStatus == WIFI_STATUS_DISCONNECTED) {
 		setupWiFi();
 	}
 
 
 #ifdef WATERING_DEBUG
 	tick++;
-	if (tick >= 50000) {
+	if (tick >= 65000) {
 		tick = 0;
 		debugStatus();
 	}
 #endif
 }
+
+
+/********************************************************
+ /*  Handle WiFi events                                  *
+ /********************************************************/
+void WifiEvents(WiFiEvent_t event) {
+	switch (event) {
+		case WIFI_EVENT_STAMODE_CONNECTED:
+			W_DEBUGLN("[WiFi] Connected\n");
+			wifiConnectionStatus = WIFI_STATUS_CONNECTED;
+			break;
+
+		case WIFI_EVENT_STAMODE_DISCONNECTED:
+			wifiConnectionStatus = WIFI_STATUS_DISCONNECTED;
+			W_DEBUG("[WiFi] Disconnected - Status ");
+			EXTRA_YIELD();
+			switch (WiFi.status()) {
+				case WL_CONNECTED:
+					W_DEBUGLN("Connected");
+					break;
+
+				case WL_NO_SSID_AVAIL:
+					W_DEBUGLN("Network not availible");
+					break;
+
+				case WL_CONNECT_FAILED:
+					W_DEBUGLN("Wrong password");
+					break;
+
+				case WL_IDLE_STATUS:
+					W_DEBUGLN("Idle status");
+					break;
+
+				case WL_DISCONNECTED:
+					W_DEBUGLN("Disconnected");
+					break;
+
+				default:
+					W_DEBUGLN("Unknown / Other");
+					break;
+			}
+			break;
+
+		case WIFI_EVENT_STAMODE_AUTHMODE_CHANGE:
+			W_DEBUGLN("[WiFi] AuthMode Change");
+			break;
+
+		case WIFI_EVENT_STAMODE_GOT_IP:
+			wifiConnectionStatus = WIFI_STATUS_CONNECTED;
+			W_DEBUGLN("[WiFi] Got IP");
+			setupOTA();
+			break;
+
+		case WIFI_EVENT_STAMODE_DHCP_TIMEOUT:
+			wifiConnectionStatus = WIFI_STATUS_DISCONNECTED;
+			W_DEBUGLN("[WiFi] DHCP Timeout");
+			break;
+
+		case WIFI_EVENT_SOFTAPMODE_STACONNECTED:
+			wifiConnectionStatus = WIFI_STATUS_CONNECTED;
+			W_DEBUGLN("[WiFi] AP Mode - Client Connected");
+			break;
+
+		case WIFI_EVENT_SOFTAPMODE_STADISCONNECTED:
+			wifiConnectionStatus = WIFI_STATUS_CONNECTED;
+			W_DEBUGLN("[WiFi] AP Mode - Client Disconnected");
+			break;
+
+		case WIFI_EVENT_SOFTAPMODE_PROBEREQRECVED:
+			wifiConnectionStatus = WIFI_STATUS_CONNECTED;
+			W_DEBUGLN("[WiFi] AP Mode - Probe request recieved");
+			break;
+
+		default:
+			W_DEBUG("[WiFi] Unknown event: ");
+			W_DEBUGLN(event);
+			break;
+	}
+
+}
+
 
 
 #ifdef WATERING_LOW_POWER_MODE

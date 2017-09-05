@@ -104,7 +104,7 @@
 	});
 	
 	
-	var editableStatusFields = {"soilSensorMinLevel": true, "soilSensorMaxLevel": true, "timeReadMilisStandBy": true, "timeReadMilisWatering": true, "timeWarmingMilis": true, "mqttIp": true, "apiIp": true, "wifiIp": true, "wifiNet": true, "wifiGW": true, "wifiDNS1": true, "wifiDNS2": true};
+	var editableStatusFields = {"soilSensorMinLevel":true,"soilSensorMaxLevel":true,"timeReadMilisStandBy":true,"timeReadMilisWatering":true,"timeWarmingMilis":true,"mqttIp":true,"apiIp":true,"wifiIp":true,"wifiNet":true,"wifiGW":true,"wifiDNS1":true,"wifiDNS2":true,"wifi_mode":true};
 	
 	function _getField(n, v) {
 		var content = '';
@@ -167,7 +167,5 @@
 		});
 	}
 	
-	$('.app-config').on('click', function (e) { e.preventDefault(); getConfig(); });
-	
-	
+	$('.app-config').on('click', function (e) { e.preventDefault(); getConfig(); });	
 }());

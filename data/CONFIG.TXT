@@ -9,23 +9,23 @@
 #  timeWarmingMilis - ms warming sensor before read. Sensor is stopped when pump is not working and is powered each timeReportMilis
 # Comments: lines starting with "#", ";" or "//"
 wifi_mode = A
-ssid = WateringConfigSSID
+ssid = WateringSystem
 ;password = -none-
 soilSensorMinLevel = 400
 soilSensorMaxLevel = 800
-timeReadMilisStandBy = 600000
-timeReadMilisWatering = 5000
+timeReadMilisStandBy = 1800000
+timeReadMilisWatering = 30000
 timeWarmingMilis = 30000
 ;ApiKey = Get one at http://www.foroelectro.net/arduino
 
 mqttIp = 163.172.27.140
 apiIp = 163.172.27.140
 
-;wifiIp = 192.168.1.28
+;wifiIp = 192.168.4.1
 ;wifiNet = 255.255.255.0
-;wifiGW = 192.168.1.1
-wifiDNS1 = 8.8.8.8
-wifiDNS2 = 8.8.4.4
+;wifiGW = 192.168.4.1
+;wifiDNS1 = 8.8.8.8
+;wifiDNS2 = 8.8.4.4
 
 hostname = WateringSystem
 
