@@ -62,6 +62,9 @@ Eletrovalve:
 
 ### With SD-card, not compatible with low power mode or DHT11, DHT21 or DHT22 ###
 
+https://github.com/Naguissa/watering/blob/master/doc/watering%20-%20sdcard.svg
+
+
 SD-Card reader, optional:
  * MISO -- D6
  * SCK -- D5
@@ -78,6 +81,8 @@ Soil Sensor:
  * VCC - D0 (digital pin here to connect/disconnect sensor as needed)
 
 ### Without SD-card, compatible with low power mode and/or DHT11, DHT21 or DHT22 ###
+
+https://github.com/Naguissa/watering/blob/master/doc/watering%20-%20spiffs.svg
 
 * Note: You can use SPIFFS for storage or directly nothing.
   
