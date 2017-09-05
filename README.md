@@ -75,7 +75,7 @@ Soil Sensor:
  * AO -- A0 (remember using a voltage divissor if your oard doesn't have it built-in)
  * DO -- Not connected
  * GND -- G
- * VCC - D10 (digital pin here to connect/disconnect sensor as needed)
+ * VCC - D0 (digital pin here to connect/disconnect sensor as needed)
 
 ### Without SD-card, compatible with low power mode and/or DHT11, DHT21 or DHT22 ###
 
