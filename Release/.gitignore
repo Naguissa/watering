@@ -1,0 +1,9 @@
+/core/
+/libraries/
+/.ino.cpp.d
+/.ino.cpp.o
+/arduino.ar
+/makefile
+/sources.mk
+/subdir.mk
+/watering.elf

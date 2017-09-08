@@ -210,7 +210,7 @@ void doReportConfig() {
 	String tmp;
 	char buff[16];
 	EXTRA_YIELD();
-	sprintf(lastReport, "{\"v\":\"%u\",\"t\":\"%u\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReadMilisStandBy\":\"%lu\",\"timeReadMilisWatering\":\"%lu\",\"timeWarmingMilis\":\"%lu\",\"wifi_mode\":\"%c\"", DATA_VERSION, DATA_TYPE_CONFIG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, timeReadMilisStandBy, timeReadMilisWatering, timeWarmingMilis, wifi_mode);
+	sprintf(lastReport, "{\"v\":\"%u\",\"t\":\"%u\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReadMilisStandBy\":\"%lu\",\"timeReadMilisWatering\":\"%lu\",\"timeWarmingMilis\":\"%lu\",\"wifi_mode\":\"%c\",\"ssid\":\"%s\",\"password\":\"\"", DATA_VERSION, DATA_TYPE_CONFIG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, timeReadMilisStandBy, timeReadMilisWatering, timeWarmingMilis, wifi_mode, ssid);
 	EXTRA_YIELD();
 
 	strcat(lastReport, ",\"mqttIp\":");
@@ -462,6 +462,7 @@ void soilSensorChecks() {
 				if (!isnan(event.temperature)) {
 					dht_t = (int) (event.temperature * 100);
 				}
+			EXTRA_YIELD();
 				dht.humidity().getEvent(&event);
 				if (!isnan(event.relative_humidity)) {
 					dht_h = (int) (event.relative_humidity * 100);
@@ -740,7 +741,7 @@ void handleSetRTC() {
 				configFile.print(F("password = "));
 				configFile.println(password);
 			} else {
-				configFile.println(F(";ssid = <Your WiFi password>"));
+			configFile.println(F(";password = <Your WiFi password>"));
 			}
 			configFile.print(F("soilSensorMinLevel = "));
 			configFile.println(soilSensorMinLevel);
@@ -1037,6 +1038,27 @@ void handleSaveConfig() {
 
 	EXTRA_YIELD();
 
+	value = server.arg("ssid");
+	value.trim();
+	if (value != "") {
+		parseConfigString(&ssid, &value);
+		EXTRA_YIELD();
+	}
+
+	value = server.arg("password");
+	value.trim();
+	if (value != "") {
+		parseConfigString(&password, &value);
+		EXTRA_YIELD();
+	}
+
+	value = server.arg("wifi_mode");
+	value.trim();
+	if (value != "") {
+		wifi_mode = value.charAt(0);
+		EXTRA_YIELD();
+	}
+
 	value = server.arg("soilSensorMinLevel");
 	value.trim();
 	if (value != "") {
@@ -1168,6 +1190,12 @@ void handleSaveConfig() {
 	server.sendContent(F("{\"save\": "));
 	server.sendContent(saveConfig() ? F("true") : F("false"));
 	server.sendContent(F("}"));
+
+	EXTRA_YIELD();
+
+	delay(1); // yes, delay... just before reset;
+	ESP.reset();
+	EXTRA_YIELD();
 }
 
 
