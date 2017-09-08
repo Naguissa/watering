@@ -25,6 +25,13 @@ Also all libraries used are Arduino-copatible, so should be possible to adapt th
   * If you want to use SPIFFS instead an SD-card, upload extra data at Arduino IDE -> Tools -> ESP8266 Sketch Data Upload
   * If no logs and extras, simply do nothing (except enable that option in .h file).
 
+## Recommendations ##
+
+As internal data is small, use as small SPIFFS size as possible. On nodeMCU, it's preferred 1Mb SPIFFS / 3Mb code against 1Mb code / 3Mb SPIFFS
+
+You can upload programs using OTA on same minor versions but you will need to update DATA folder when changing among major versions.
+
+
 ## Connections on NodeMCU v3 ##
 
 (piece pin -- NodeMCU v3 pin)
