@@ -32,7 +32,7 @@ extern fs::FS SPIFFS;
 
 
 #ifdef WATERING_DEBUG
-	#include <GDBStub.h>
+#include <GDBStub.h>
 #endif
 #ifdef OTA_ENABLED
 	#include <WiFiUdp.h>
@@ -210,7 +210,7 @@ void doReportConfig() {
 	String tmp;
 	char buff[16];
 	EXTRA_YIELD();
-	sprintf(lastReport, "{\"v\":\"%u\",\"t\":\"%u\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReadMilisStandBy\":\"%lu\",\"timeReadMilisWatering\":\"%lu\",\"timeWarmingMilis\":\"%lu\",\"wifi_mode\":\"%c\",\"ssid\":\"%s\",\"password\":\"\"", DATA_VERSION, DATA_TYPE_CONFIG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, timeReadMilisStandBy, timeReadMilisWatering, timeWarmingMilis, wifi_mode, ssid);
+	sprintf(lastReport, "{\"v\":\"%u\",\"t\":\"%u\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReadMilisStandBy\":\"%lu\",\"timeReadMilisWatering\":\"%lu\",\"timeWarmingMilis\":\"%lu\",\"wifi_mode\":\"%c\",\"ssid\":\"%s\",\"password\":\"\",\"reportingApiKey\":\"%s\"", DATA_VERSION, DATA_TYPE_CONFIG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, timeReadMilisStandBy, timeReadMilisWatering, timeWarmingMilis, wifi_mode, ssid, reportingApiKey);
 	EXTRA_YIELD();
 
 	strcat(lastReport, ",\"mqttIp\":");
@@ -493,7 +493,7 @@ void soilSensorChecks() {
 
 void soilSensorActuations() {
 	outOfWater = OOW_READ_EXTRA_FUN(digitalRead(WATER_LEVEL_PIN));
-	if (lastSoilSensorRead == -1 || outOfWater) {
+	if (lastSoilSensorRead <= 0 || outOfWater) {
   		pumpRunning = PUMP_STATUS_OFF;
 	} else {
 		if (lastSoilSensorRead > soilSensorMinLevel) {
@@ -838,6 +838,8 @@ void handleSetRTC() {
 				path += "index.htm";
 			}
 
+	W_DEBUG("[WEB] Page request: ");
+	W_DEBUGLN(path);
 	fs::File dataFile = SPIFFS.open(path.c_str(), "r");
 			if (!dataFile) {
 				String message = "File Not Found\n\n";
@@ -1045,6 +1047,13 @@ void handleSaveConfig() {
 		EXTRA_YIELD();
 	}
 
+	value = server.arg("reportingApiKey");
+	value.trim();
+	if (value != "") {
+		parseConfigString(&reportingApiKey, &value);
+		EXTRA_YIELD();
+	}
+
 	value = server.arg("password");
 	value.trim();
 	if (value != "") {
@@ -1204,8 +1213,8 @@ void handleSaveConfig() {
 void setupWiFi(void){
 	server.stop();
 	WiFi.disconnect();
-//	WiFi.setAutoConnect(true);
-	WiFi.setAutoReconnect(false);
+	WiFi.setAutoConnect(true);
+	WiFi.setAutoReconnect(true);
 
 	if (wifi_mode == 'S') {
 		WiFi.mode(WIFI_STA);
@@ -1239,7 +1248,6 @@ void setupWiFi(void){
 		wifiConnectionStatus = WIFI_STATUS_CONNECTED;
 		W_DEBUG("Connected! IP address: ");
 		W_DEBUGLN(WiFi.localIP());
-
 	} else { // Default mode, 'A' (AP)
 		WiFi.mode(WIFI_AP);
 
@@ -1349,8 +1357,7 @@ void setup(void) {
     W_DEBUGLN(F("Hardware OK"));
     loadConfig();
     W_DEBUGLN(F("Config OK"));
-
-	WiFi.onEvent(WifiEvents);
+	AttachWifiEvents();
 	setupWiFi();
     W_DEBUGLN(F("Wifi OK"));
     W_DEBUGLN(F("-- Setup done --"));
@@ -1385,7 +1392,7 @@ void loop(void){
 	EXTRA_YIELD();
 	server.handleClient();
 	EXTRA_YIELD();
-	if ((wifi_mode == 'S' && WiFi.status() != WL_CONNECTED) /* || strcmp(WiFi.SSID().c_str(), ssid) != 0 */ || wifiConnectionStatus == WIFI_STATUS_DISCONNECTED) {
+	if (wifiConnectionStatus != WIFI_STATUS_CONNECTED) {
 		setupWiFi();
 	}
 
@@ -1401,83 +1408,30 @@ void loop(void){
 
 
 /********************************************************
- /*  Handle WiFi events                                  *
- /********************************************************/
-void WifiEvents(WiFiEvent_t event) {
-	switch (event) {
-		case WIFI_EVENT_STAMODE_CONNECTED:
-			W_DEBUGLN("[WiFi] Connected\n");
-			wifiConnectionStatus = WIFI_STATUS_CONNECTED;
-			break;
+ *  Handle WiFi events                                  *
+ ********************************************************/
 
-		case WIFI_EVENT_STAMODE_DISCONNECTED:
-			wifiConnectionStatus = WIFI_STATUS_DISCONNECTED;
-			W_DEBUG("[WiFi] Disconnected - Status ");
-			EXTRA_YIELD();
-			switch (WiFi.status()) {
-				case WL_CONNECTED:
-					W_DEBUGLN("Connected");
-					break;
-
-				case WL_NO_SSID_AVAIL:
-					W_DEBUGLN("Network not availible");
-					break;
-
-				case WL_CONNECT_FAILED:
-					W_DEBUGLN("Wrong password");
-					break;
-
-				case WL_IDLE_STATUS:
-					W_DEBUGLN("Idle status");
-					break;
-
-				case WL_DISCONNECTED:
-					W_DEBUGLN("Disconnected");
-					break;
-
-				default:
-					W_DEBUGLN("Unknown / Other");
-					break;
-			}
-			break;
-
-		case WIFI_EVENT_STAMODE_AUTHMODE_CHANGE:
-			W_DEBUGLN("[WiFi] AuthMode Change");
-			break;
-
-		case WIFI_EVENT_STAMODE_GOT_IP:
-			wifiConnectionStatus = WIFI_STATUS_CONNECTED;
-			W_DEBUGLN("[WiFi] Got IP");
-			setupOTA();
-			break;
-
-		case WIFI_EVENT_STAMODE_DHCP_TIMEOUT:
-			wifiConnectionStatus = WIFI_STATUS_DISCONNECTED;
-			W_DEBUGLN("[WiFi] DHCP Timeout");
-			break;
-
-		case WIFI_EVENT_SOFTAPMODE_STACONNECTED:
-			wifiConnectionStatus = WIFI_STATUS_CONNECTED;
-			W_DEBUGLN("[WiFi] AP Mode - Client Connected");
-			break;
-
-		case WIFI_EVENT_SOFTAPMODE_STADISCONNECTED:
-			wifiConnectionStatus = WIFI_STATUS_CONNECTED;
-			W_DEBUGLN("[WiFi] AP Mode - Client Disconnected");
-			break;
-
-		case WIFI_EVENT_SOFTAPMODE_PROBEREQRECVED:
-			wifiConnectionStatus = WIFI_STATUS_CONNECTED;
-			W_DEBUGLN("[WiFi] AP Mode - Probe request recieved");
-			break;
-
-		default:
-			W_DEBUG("[WiFi] Unknown event: ");
-			W_DEBUGLN(event);
-			break;
-	}
-
+void onStationModeConnected(const WiFiEventStationModeConnected &ev) {
+	W_DEBUGLN("[Wifi] Connected to AP");
+	wifiConnectionStatus = WIFI_STATUS_CONNECTED;
 }
+void onStationModeDisconnected(const WiFiEventStationModeDisconnected &ev) {
+	W_DEBUGLN("[Wifi] Disconnected from AP");
+	wifiConnectionStatus = WIFI_STATUS_DISCONNECTED;
+}
+//void onStationModeDHCPTimeout() {
+//	W_DEBUGLN("[Wifi] DHCP timeout, disconnected from AP");
+//	wifiConnectionStatus = WIFI_STATUS_DISCONNECTED;
+//}
+
+void AttachWifiEvents() {
+	WiFi.onStationModeConnected(onStationModeConnected);
+	WiFi.onStationModeDisconnected(onStationModeDisconnected);
+//	WiFi.onStationModeDHCPTimeout(onStationModeDHCPTimeout);
+}
+
+
+
 
 
 

@@ -151,7 +151,11 @@ void handleSaveConfig(void);
 	#ifdef OTA_ENABLED
 		void setupOTA(void);
 	#endif
-void WifiEvents(WiFiEvent_t);
+void AttachWifiEvents(void);
+void onStationModeConnected(const WiFiEventStationModeConnected &);
+void onStationModeDisconnected(const WiFiEventStationModeDisconnected &);
+//void onStationModeDHCPTimeout(void);
+
 
 
 
