@@ -496,10 +496,10 @@ void soilSensorActuations() {
 	if (lastSoilSensorRead <= 0 || outOfWater) {
   		pumpRunning = PUMP_STATUS_OFF;
 	} else {
-		if (lastSoilSensorRead > soilSensorMinLevel) {
+		if (lastSoilSensorRead < soilSensorMinLevel) {
   			pumpRunning = PUMP_STATUS_ON;
 		}
-		if (lastSoilSensorRead < soilSensorMaxLevel) {
+		if (lastSoilSensorRead > soilSensorMaxLevel) {
   			pumpRunning = PUMP_STATUS_OFF;
 		}
 	}
