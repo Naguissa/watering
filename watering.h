@@ -23,7 +23,7 @@
 
 	// If uncommented, enables low power mode: gets MCU to sleep when detects a long period of waiting time.
 	// Not compatible with FS_SD_CARD
-	//#define WATERING_LOW_POWER_MODE
+#define WATERING_LOW_POWER_MODE
 
 	// For different sensors, positive or neative ones
 	// Out Of Water sensor
@@ -146,7 +146,7 @@ void handleSaveConfig(void);
 		void debugStatus();
 	#endif
 	#ifdef WATERING_LOW_POWER_MODE
-		void goToDeepSleep();
+void goToDeepSleep(long int);
 	#endif
 	#ifdef OTA_ENABLED
 		void setupOTA(void);
@@ -171,6 +171,9 @@ void onStationModeDisconnected(const WiFiEventStationModeDisconnected &);
 	bool soilSensorStatus = SOIL_SENSOR_STATUS_ON;
 	bool hasSD = false;
 	unsigned long actMilis = 0;
+#ifdef WATERING_LOW_POWER_MODE
+bool DeepSleep = false;
+#endif
 
 
 	#ifdef WATERING_DEBUG
@@ -248,6 +251,8 @@ void onStationModeDisconnected(const WiFiEventStationModeDisconnected &);
 
 char wifiConnectionStatus = WIFI_STATUS_DISCONNECTED;
 
+// min ms of waiting time to trigger deep sleep. Default: 60000 (= 1min)
+#define LOW_POWER_DIFF 60000
 
 
 

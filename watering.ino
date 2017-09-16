@@ -186,6 +186,8 @@ void parseConfigLine(String line) {
 		parseConfigIpValue(&wifiDNS2, tmpbuffer);
 	} else if (variable.equals("wifi_mode")) {
 		wifi_mode = value.charAt(0);
+	} else if (variable.equals("DeepSleep")) {
+		DeepSleep = (value.charAt(0) == '1' ? true : false);
 	} else {
 		W_DEBUG(F("CONFIG LINE UNKNOWN: "));
 		W_DEBUGLN(line);
@@ -212,6 +214,15 @@ void doReportConfig() {
 	EXTRA_YIELD();
 	sprintf(lastReport, "{\"v\":\"%u\",\"t\":\"%u\",\"date\":\"%02u-%02u-%02u %02u:%02u:%02u\",\"dow\":\"%u\",\"soilSensorMinLevel\":\"%u\",\"soilSensorMaxLevel\":\"%u\",\"timeReadMilisStandBy\":\"%lu\",\"timeReadMilisWatering\":\"%lu\",\"timeWarmingMilis\":\"%lu\",\"wifi_mode\":\"%c\",\"ssid\":\"%s\",\"password\":\"\",\"reportingApiKey\":\"%s\"", DATA_VERSION, DATA_TYPE_CONFIG, rtc.year(), rtc.month(), rtc.day(), rtc.hour(), rtc.minute(), rtc.second(), rtc.dayOfWeek(), soilSensorMinLevel, soilSensorMaxLevel, timeReadMilisStandBy, timeReadMilisWatering, timeWarmingMilis, wifi_mode, ssid, reportingApiKey);
 	EXTRA_YIELD();
+
+#ifdef WATERING_LOW_POWER_MODE
+	strcat(lastReport, ",\"DeepSleep\":");
+	if (DeepSleep) {
+		strcat(lastReport, "\"1\"");
+	} else {
+		strcat(lastReport, "\"0\"");
+	}
+#endif
 
 	strcat(lastReport, ",\"mqttIp\":");
 	if (mqttIp == NULL) {
@@ -473,6 +484,11 @@ void soilSensorChecks() {
 			EXTRA_YIELD();
 			return;
 		}
+#ifdef WATERING_LOW_POWER_MODE
+		if (DeepSleep && actMilis + LOW_POWER_DIFF + timeWarmingMilis < nextSoilSensorReadTime) {
+			goToDeepSleep(nextSoilSensorReadTime - actMilis - timeWarmingMilis);
+		}
+#endif
 		if (nextSoilSensorReadTime > actMilis + timeWarmingMilis + 1000) { // Next read is after warming cycle; disable sensor
 			W_DEBUGLN(F("Sensor timeout deactivation!"));
 			soilSensorStatus = SOIL_SENSOR_STATUS_OFF;
@@ -480,6 +496,11 @@ void soilSensorChecks() {
 	// Sensor off; waiting for next test
 	} else {
 		unsigned long nextSoilSensorPowerTime = lastSoilSensorReadTime + (pumpRunning == PUMP_STATUS_ON ? timeReadMilisWatering : timeReadMilisStandBy) - timeWarmingMilis;
+#ifdef WATERING_LOW_POWER_MODE
+		if (DeepSleep && actMilis + LOW_POWER_DIFF < nextSoilSensorPowerTime) {
+			goToDeepSleep(nextSoilSensorPowerTime - actMilis);
+	}
+#endif
 		if (nextSoilSensorPowerTime <= actMilis) { // Let's activate it!
 			W_DEBUGLN(F("Sensor activation!"));
 			lastSoilSensorActivationTime = actMilis;
@@ -801,6 +822,12 @@ void handleSetRTC() {
 			} else {
 				configFile.println(F(";wifiDNS2 = <Static DNS 2>"));
 			}
+
+		configFile.print(F("DeepSleep = "));
+		configFile.println(DeepSleep ? '1' : '0');
+		EXTRA_YIELD();
+
+
 			configFile.close();
 	    	return true;
 		} else {
@@ -1002,6 +1029,10 @@ void handleSetRTC() {
 				}
 		EXTRA_YIELD();
 
+		configFile.print(F("DeepSleep = "));
+		configFile.println(DeepSleep ? '1' : '0');
+		EXTRA_YIELD();
+
 				configFile.close();
 		return true;
 			} else {
@@ -1046,6 +1077,15 @@ void handleSaveConfig() {
 		parseConfigString(&ssid, &value);
 		EXTRA_YIELD();
 	}
+
+	value = server.arg("DeepSleep");
+	value.trim();
+	if (value == "1") {
+		DeepSleep = true;
+	} else {
+		DeepSleep = false;
+	}
+	EXTRA_YIELD();
 
 	value = server.arg("reportingApiKey");
 	value.trim();
@@ -1202,7 +1242,7 @@ void handleSaveConfig() {
 
 	EXTRA_YIELD();
 
-	delay(1); // yes, delay... just before reset;
+	delay(1000); // yes, delay... just before reset;
 	ESP.reset();
 	EXTRA_YIELD();
 }
@@ -1436,10 +1476,12 @@ void AttachWifiEvents() {
 
 
 #ifdef WATERING_LOW_POWER_MODE
-	void goToDeepSleep() {
-
-
-
+void goToDeepSleep(long int miliseconds) {
+	W_DEBUG("Going to DeepSleep for ");
+	W_DEBUG(miliseconds);
+	W_DEBUGLN(" miliseconds. Remember you MUST have GPIO16 (D0) connected to RST");
+	ESP.deepSleep(miliseconds * 1000);
+	EXTRA_YIELD();
 	}
 #endif
 

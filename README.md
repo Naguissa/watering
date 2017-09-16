@@ -105,7 +105,10 @@ DHT11/21/22:
  * Pin4, GND -- G
  
  * Remember 10K resistor between DHT pin1 and pin2.
+ 
+**Deep Sleep activation**
 
+ * Remember you NEED to connect GPIO16 (D0 on NodeMCUv3) and RST pins on ESP8266 devicein order to be able to wake-up.
 
 ## Who do I talk to? ##
 
