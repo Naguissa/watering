@@ -1,6 +1,15 @@
 #ifndef __WATERING_H__
 #define __WATERING_H__
 
+// Choose IDE, because we need different hacks depending IDE
+#define IDE_ARDUINO 1
+#define IDE_ECLIPSE 2
+
+#define IDE_USED IDE_ECLIPSE
+//#define IDE_USED IDE_ARDUINO
+
+
+
 // Log and web server filesystem definitions; don't hange
 #define FS_NONE 0
 #define FS_SD_CARD 1
@@ -9,13 +18,13 @@
 	#define FS_TYPE FS_SPIFFS
 
 	// Comment to disable Serial debug prints
-	#define WATERING_DEBUG
+#define WATERING_DEBUG
 
 	// Comment to disable MQTT support
 	//#define WATERING_MQTT
 
 	// Comment to disable OTA support
-	#define OTA_ENABLED
+#define OTA_ENABLED
 
 	// Comment to disable web browser update support
 #define WEB_UPDATE_ENABLED
@@ -83,6 +92,59 @@
 	#endif
 
 
+
+
+
+
+
+
+// Needed libraries
+#include <Arduino.h>
+#include <SPI.h>
+#include <ESP8266WiFi.h>
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266mDNS.h>
+
+#if FS_TYPE == FS_SD_CARD
+#include <SD.h>
+#elif FS_TYPE == FS_SPIFFS
+#if IDE_USED == IDE_ECLIPSE
+#define FS_NO_GLOBALS	// Avoid File compile error on Eclipse
+#include "FS.h"
+extern fs::FS SPIFFS;
+#else
+#include "FS.h"
+#endif
+#endif
+
+#ifdef WATERING_DEBUG
+#include <GDBStub.h>
+#endif
+#ifdef OTA_ENABLED
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
+#endif
+#ifdef WEB_UPDATE_ENABLED
+#include <ESP8266HTTPUpdateServer.h>
+#endif
+#include <Wire.h>
+#include <SPI.h>
+
+#include <uRTCLib.h>
+
+#ifdef WATERING_DHTTYPE
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+#include <DHT_U.h>
+#endif
+
+#ifdef WATERING_MQTT
+#include <PubSubClient.h>
+#endif
+
+// Globals
+
 	char *reportingApiKey = NULL;
 	char* ssid = NULL;
 	char* password = NULL;
@@ -118,8 +180,8 @@
 	void parseConfigIpValue(IPAddress**, char *);
 	void parseConfigString(char **, String *);
 	void parseConfigLine(String);
-	void doReport();
-void doReportConfig();
+bool doReport();
+bool doReportConfig();
 	void report();
 void returnFail(String);
 	void handleStatus();
@@ -155,13 +217,16 @@ void AttachWifiEvents(void);
 void onStationModeConnected(const WiFiEventStationModeConnected &);
 void onStationModeDisconnected(const WiFiEventStationModeDisconnected &);
 //void onStationModeDHCPTimeout(void);
+#ifdef WATERING_MQTT
+void mqttCallback(char*, byte*, unsigned int);
+#endif
 
 
 
 
 
 	/** Status global variables **/
-	char lastReport[512]; // Take care, very long string
+char lastReport[1024]; // Take care, very long string
 	unsigned long int lastReportTime = 0;
 	unsigned long int lastSoilSensorActivationTime = 0;
 	unsigned long int lastSoilSensorReadTime = 0;
@@ -171,6 +236,7 @@ void onStationModeDisconnected(const WiFiEventStationModeDisconnected &);
 	bool soilSensorStatus = SOIL_SENSOR_STATUS_ON;
 	bool hasSD = false;
 	unsigned long actMilis = 0;
+bool doingReport = false;
 #ifdef WATERING_LOW_POWER_MODE
 bool DeepSleep = false;
 #endif
@@ -254,6 +320,8 @@ char wifiConnectionStatus = WIFI_STATUS_DISCONNECTED;
 // min ms of waiting time to trigger deep sleep. Default: 60000 (= 1min)
 #define LOW_POWER_DIFF 60000
 
+// ms of waiting time to shut off sensor between reads. Default: 2000 (= 2sec)
+#define REGULAR_SENSOR_DIFF 2000
 
 
 #ifdef ESP8266
